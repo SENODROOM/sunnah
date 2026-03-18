@@ -1,0 +1,58 @@
+{
+  "name": "sahih-al-bukhari",
+  "version": "3.1.0",
+  "description": "Complete Sahih al-Bukhari. Tiny package (~3KB), data from CDN. CLI + Node + React/Vue/Vite.",
+  "type": "module",
+  "main": "./index.cjs",
+  "module": "./index.browser.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "browser": "./index.browser.js",
+      "require": "./index.cjs",
+      "import": "./index.node.js"
+    },
+    "./chapters/*": "./chapters/*"
+  },
+  "bin": {
+    "bukhari": "./bin/index.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
+  },
+  "keywords": [
+    "islam",
+    "hadith",
+    "bukhari",
+    "sahih",
+    "prophet",
+    "muslim",
+    "json",
+    "arabic",
+    "english",
+    "quran",
+    "react",
+    "hook"
+  ],
+  "author": "muhammadsaadamin",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SENODROOM/sahih-al-bukhari.git"
+  },
+  "files": [
+    "index.js",
+    "index.browser.js",
+    "index.cjs",
+    "index.node.js",
+    "index.d.ts",
+    "bin/index.js",
+    "bin/bukhari.json",
+    "chapters/"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
