@@ -3,3 +3,7 @@ books/
 books
 /books
 books/*
+sunnah.txt
+/sunnah.txt
+.gitignore
+/.gitignore
