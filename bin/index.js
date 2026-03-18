@@ -193,9 +193,10 @@ function animateInstall(pkgName) {
     };
 
     setTimeout(tick, stages[0].ms);
+    // shell: true only on Windows (needed for npm.cmd); never on Unix to avoid DEP0190
     const proc = spawn(NPM, ["install", "-g", pkgName], {
       stdio: ["ignore", "pipe", "pipe"],
-      shell: isWin,
+      ...(isWin ? { shell: false } : {}),
     });
     proc.on("error", () => {
       npmDone = true;
@@ -213,7 +214,6 @@ function buildInstalledCache() {
   try {
     out = execSync(`${NPM} list -g --depth=0`, {
       encoding: "utf8",
-      shell: isWin,
       timeout: 10000,
       stdio: ["ignore", "pipe", "ignore"],
     });
@@ -230,7 +230,6 @@ function getLatestVersion(name) {
   try {
     return execSync(`${NPM} show ${name} version`, {
       encoding: "utf8",
-      shell: isWin,
       timeout: 8000,
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -243,7 +242,6 @@ function getInstalledVersion(name) {
   try {
     const out = execSync(`${NPM} list -g ${name} --depth=0`, {
       encoding: "utf8",
-      shell: isWin,
       timeout: 8000,
       stdio: ["ignore", "pipe", "ignore"],
     });
@@ -256,6 +254,27 @@ function getInstalledVersion(name) {
 
 let installedCache = new Map();
 const isInstalled = (name) => installedCache.get(name) ?? false;
+
+// ── Update cache — fetched async so UI stays responsive ───────────────────────
+// Map<pkgName, { current: string|null, latest: string|null, hasUpdate: boolean }>
+let updateCache = new Map();
+let updateCacheReady = false;
+
+async function prefetchUpdateCache() {
+  const installed = PACKAGES.filter((p) => isInstalled(p.name));
+  await Promise.all(
+    installed.map(async (p) => {
+      const current = getInstalledVersion(p.name);
+      const latest = getLatestVersion(p.name);
+      updateCache.set(p.name, {
+        current,
+        latest,
+        hasUpdate: !!(current && latest && current !== latest),
+      });
+    }),
+  );
+  updateCacheReady = true;
+}
 
 // ── Clipboard ─────────────────────────────────────────────────────────────────
 function copyToClipboard(text) {
@@ -501,7 +520,11 @@ function getPersonalizedSuggestions() {
 }
 
 // ── Modes ─────────────────────────────────────────────────────────────────────
-const MODE = { LIST: "list", CONFIRM_UNINSTALL: "confirm_uninstall" };
+const MODE = {
+  LIST: "list",
+  CONFIRM_UNINSTALL: "confirm_uninstall",
+  UPDATE: "update",
+};
 
 // ── Interactive render ────────────────────────────────────────────────────────
 function render(state) {
@@ -530,6 +553,8 @@ function render(state) {
       " info  " +
       gray("u") +
       " uninstall  " +
+      gray("U") +
+      " update  " +
       gray("enter") +
       " install  " +
       gray("q") +
@@ -551,7 +576,12 @@ function render(state) {
         ? green(p.label)
         : white(p.label);
     const badge = inst
-      ? dim(green("  ● installed"))
+      ? dim(green("  ● installed")) +
+        (updateCache.get(p.name)?.hasUpdate
+          ? " " + yellow("↑ update available")
+          : updateCacheReady && inst
+            ? " " + dim(gray("(up to date)"))
+            : "")
       : dim(gray("  ○ not installed"));
 
     writeLine(row++, `  ${arrow} ${checkbox}  ${label}${badge}`);
@@ -559,10 +589,19 @@ function render(state) {
     if (isCursor) {
       writeLine(row++, `         ${dim(p.author)}`);
       writeLine(row++, `         ${gray(p.desc)}`);
+      const uc = updateCache.get(p.name);
+      const verStr = inst
+        ? uc
+          ? uc.hasUpdate
+            ? gray("  v") + yellow(uc.current) + gray(" → ") + green(uc.latest)
+            : gray("  v") + cyan(uc.current || "?")
+          : gray("  (checking…)")
+        : "";
       writeLine(
         row++,
         `         ${gray("Hadiths: ")}${yellow(p.hadiths)}` +
           `   ${gray("CLI: ")}${cyan(p.cmd + " --help")}` +
+          verStr +
           (inst ? `   ${gray("try: ")}${cyan(p.cmd + " --random")}` : ""),
       );
       row++;
@@ -614,10 +653,23 @@ function cmdList() {
   PACKAGES.forEach((p) => {
     const inst = isInstalled(p.name);
     const badge = inst ? green("  ✓ installed") : red("  ✗ not installed");
-    const version = inst
-      ? dim(gray("  " + (getInstalledVersion(p.name) || "")))
-      : "";
-    console.log(`\n  ${bold(white(p.label))}${badge}${version}`);
+    let versionStr = "";
+    if (inst) {
+      const current = getInstalledVersion(p.name);
+      const latest = getLatestVersion(p.name);
+      if (current && latest) {
+        versionStr =
+          current === latest
+            ? dim(gray("  v" + current + " (up to date)"))
+            : yellow("  v" + current) +
+              gray(" → ") +
+              green("v" + latest) +
+              yellow(" ↑ update available");
+      } else if (current) {
+        versionStr = dim(gray("  v" + current));
+      }
+    }
+    console.log(`\n  ${bold(white(p.label))}${badge}${versionStr}`);
     console.log(`  ${cyan("npm install -g " + p.name)}`);
     console.log(`  ${dim(p.desc)}`);
     console.log(
@@ -633,7 +685,7 @@ function cmdList() {
 }
 
 // ── --update ──────────────────────────────────────────────────────────────────
-function cmdUpdate() {
+async function cmdUpdate(autoInstall = false) {
   installedCache = buildInstalledCache();
   const installed = PACKAGES.filter((p) => isInstalled(p.name));
   if (!installed.length) {
@@ -646,14 +698,19 @@ function cmdUpdate() {
     return;
   }
   const div = gray("─".repeat(60));
-  console.log("\n" + div);
+  const div2 = gray("═".repeat(60));
+  console.log("\n" + div2);
   console.log(bold(cyan("  Checking for updates…")));
-  console.log(div + "\n");
+  console.log(div2 + "\n");
 
-  let hasUpdates = false;
+  const updates = [];
   for (const p of installed) {
+    process.stdout.write(
+      "  " + gray("Checking ") + white(p.label) + gray("…\r"),
+    );
     const current = getInstalledVersion(p.name);
     const latest = getLatestVersion(p.name);
+    process.stdout.write("\x1b[K");
     if (!current || !latest) {
       console.log(
         `  ${yellow("?")} ${bold(p.label)}  ${gray("(could not check)")}`,
@@ -662,26 +719,69 @@ function cmdUpdate() {
     }
     if (current === latest) {
       console.log(
-        `  ${green("✓")} ${bold(p.label)}  ${gray(current + " — up to date")}`,
+        `  ${green("✓")} ${bold(p.label)}  ${gray("v" + current + " — up to date")}`,
       );
     } else {
-      hasUpdates = true;
+      updates.push({ p, current, latest });
       console.log(
-        `  ${yellow("↑")} ${bold(p.label)}  ${gray(current)} ${gray("→")} ${green(latest)}`,
+        `  ${yellow("↑")} ${bold(p.label)}  ${gray("v" + current)} ${gray("→")} ${green("v" + latest)}  ${yellow("(update available)")}`,
       );
-      console.log(`    ${dim("sunnah install " + p.cmd)}`);
     }
   }
 
-  if (hasUpdates) {
-    console.log(
-      "\n  " +
-        yellow("Updates available. Run ") +
-        bold("sunnah install <name>") +
-        yellow(" to update."),
-    );
+  console.log("\n" + div);
+
+  if (!updates.length) {
+    console.log("  " + green("✓ All packages are up to date."));
+    console.log(div + "\n");
+    return;
   }
-  console.log("\n" + div + "\n");
+
+  console.log(
+    "  " +
+      yellow(String(updates.length)) +
+      " update" +
+      (updates.length > 1 ? "s" : "") +
+      " available.",
+  );
+
+  if (autoInstall) {
+    console.log(bold(cyan("\n  Installing updates…")));
+    console.log(div + "\n");
+    for (let i = 0; i < updates.length; i++) {
+      const { p, current, latest } = updates[i];
+      console.log(
+        "  " +
+          cyan("[" + (i + 1) + "/" + updates.length + "]") +
+          "  " +
+          bold(white(p.label)) +
+          gray("  v" + current + " → v" + latest) +
+          "\n",
+      );
+      await animateInstall(p.name);
+      console.log(
+        "  " +
+          green("✓") +
+          " " +
+          bold(green(p.label)) +
+          gray(" updated to v" + latest),
+      );
+    }
+    console.log("\n" + div2);
+    console.log("  " + green("✓ All updates installed."));
+    console.log(div2 + "\n");
+  } else {
+    console.log(
+      "  Run " +
+        bold(cyan("sunnah --update --install")) +
+        gray(" to install all updates automatically."),
+    );
+    console.log("  Or update individually:");
+    updates.forEach(({ p }) =>
+      console.log("    " + dim("sunnah install " + p.cmd)),
+    );
+    console.log(div + "\n");
+  }
 }
 
 // ── sunnah install <cmd> ──────────────────────────────────────────────────────
@@ -785,7 +885,6 @@ function cmdUninstall(targets) {
     try {
       execSync(`${NPM} uninstall -g ${p.name}`, {
         stdio: "inherit",
-        shell: isWin,
       });
       installedCache.set(p.name, false);
       console.log(
@@ -890,6 +989,11 @@ function cmdHelp() {
   );
   console.log(
     "    " +
+      cyan("sunnah --update --install") +
+      gray("    Auto-install all available updates"),
+  );
+  console.log(
+    "    " +
       cyan("sunnah -v") +
       gray("                   Version + your collection stats"),
   );
@@ -925,6 +1029,11 @@ function cmdHelp() {
     "    " + green("i") + gray("        Show info + installed version"),
   );
   console.log("    " + green("u") + gray("        Uninstall selected"));
+  console.log(
+    "    " +
+      green("U") +
+      gray("        Update selected (if newer version available)"),
+  );
   console.log(
     "    " +
       green("enter") +
@@ -967,9 +1076,10 @@ async function main() {
     process.exit(0);
   }
 
-  // sunnah --update
+  // sunnah --update [--install]
   if (flags.some((f) => f === "--update")) {
-    cmdUpdate();
+    const autoInstall = flags.some((f) => f === "--install");
+    await cmdUpdate(autoInstall);
     process.exit(0);
   }
 
@@ -1065,6 +1175,9 @@ async function main() {
 
   render(state);
 
+  // Prefetch update info in background — re-render when ready so badges appear
+  prefetchUpdateCache().then(() => render(state));
+
   const cleanup = () => {
     // Persist current selection before exiting
     savePersistedState({ lastSelected: [...state.selected] });
@@ -1103,7 +1216,6 @@ async function main() {
         try {
           execSync(`${NPM} uninstall -g ${p.name}`, {
             stdio: "inherit",
-            shell: isWin,
           });
           installedCache.set(p.name, false);
           state.selected.delete(PACKAGES.indexOf(p));
@@ -1188,6 +1300,63 @@ async function main() {
       state.confirmTarget = toRemove[0];
       render(state);
       return;
+    }
+
+    // U = update (only packages with updates available)
+    if (str === "U") {
+      const targets =
+        state.selected.size > 0 ? [...state.selected] : [state.cursor];
+      const toUpdate = targets.filter((i) => {
+        const p = PACKAGES[i];
+        return isInstalled(p.name) && updateCache.get(p.name)?.hasUpdate;
+      });
+      if (!toUpdate.length) {
+        setStatus(
+          updateCacheReady
+            ? "All selected packages are up to date."
+            : "Update info still loading — try again shortly.",
+        );
+        return;
+      }
+      cleanup();
+      const divW = Math.min(W() - 2, 72);
+      const div2 = gray("═".repeat(divW));
+      console.log("\n" + div2);
+      console.log(
+        bold(cyan("  Updating ")) +
+          bold(yellow(String(toUpdate.length))) +
+          bold(cyan(" package" + (toUpdate.length > 1 ? "s" : "") + "…")),
+      );
+      console.log(div2);
+      for (let i = 0; i < toUpdate.length; i++) {
+        const p = PACKAGES[toUpdate[i]];
+        const uc = updateCache.get(p.name);
+        console.log(
+          "\n  " +
+            cyan("[" + (i + 1) + "/" + toUpdate.length + "]") +
+            "  " +
+            bold(white(p.label)),
+        );
+        console.log(
+          "  " + dim(gray("v" + uc.current + " → v" + uc.latest)) + "\n",
+        );
+        await animateInstall(p.name);
+        updateCache.set(p.name, {
+          current: uc.latest,
+          latest: uc.latest,
+          hasUpdate: false,
+        });
+        console.log(
+          "  " +
+            green("✓") +
+            " " +
+            bold(green(p.label)) +
+            gray(" updated to v" + uc.latest),
+        );
+      }
+      console.log("\n" + div2 + "\n");
+      showCursor();
+      process.exit(0);
     }
 
     // enter = install
