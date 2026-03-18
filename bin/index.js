@@ -286,7 +286,9 @@ function getLatestVersion(name) {
 function getInstalledVersion(name) {
   try {
     // Use --json for reliable, fast parsing
-    const out = npmSync(["list", "-g", name, "--depth=0", "--json"], { timeout: 6000 });
+    const out = npmSync(["list", "-g", name, "--depth=0", "--json"], {
+      timeout: 6000,
+    });
     const parsed = JSON.parse(out);
     return parsed?.dependencies?.[name]?.version ?? null;
   } catch (e) {
@@ -307,40 +309,82 @@ let updateCacheReady = false;
 
 async function prefetchUpdateCache() {
   const installed = PACKAGES.filter((p) => isInstalled(p.name));
-  // Run all version checks in parallel — non-blocking for the UI
-  await Promise.all(
-    installed.map((p) =>
-      new Promise((resolve) => {
-        // Use spawn (not spawnSync) to keep event loop free
-        const args = isWin
-          ? { cmd: "npm show " + p.name + " version --json", shell: true }
-          : { cmd: "npm", args: ["show", p.name, "version", "--json"] };
+  if (!installed.length) {
+    updateCacheReady = true;
+    return;
+  }
 
-        let stdout = "";
-        let proc;
-        if (isWin) {
-          proc = spawn(args.cmd, [], { stdio: ["ignore", "pipe", "pipe"], shell: true });
-        } else {
-          proc = spawn("npm", ["show", p.name, "version", "--json"], { stdio: ["ignore", "pipe", "pipe"] });
-        }
-        proc.stdout?.on("data", (d) => { stdout += d; });
-        proc.on("error", () => resolve());
-        proc.on("close", () => {
-          let latest = null;
-          try { latest = JSON.parse(stdout.trim()); } catch { latest = stdout.trim() || null; }
-          const current = getInstalledVersion(p.name);
-          updateCache.set(p.name, {
-            current,
-            latest,
-            hasUpdate: !!(current && latest && current !== latest),
-          });
-          resolve();
+  // Step 1: get ALL installed versions in ONE npm call (fast)
+  const currentVersions = new Map();
+  await new Promise((resolve) => {
+    let out = "";
+    const proc = isWin
+      ? spawn("npm list -g --depth=0 --json", [], {
+          stdio: ["ignore", "pipe", "pipe"],
+          shell: true,
+        })
+      : spawn("npm", ["list", "-g", "--depth=0", "--json"], {
+          stdio: ["ignore", "pipe", "pipe"],
         });
-        // Safety timeout — don't wait forever
-        setTimeout(() => { try { proc.kill(); } catch (_e) {} resolve(); }, 8000);
-      })
-    )
+    proc.stdout?.on("data", (d) => {
+      out += d;
+    });
+    proc.on("error", () => resolve());
+    proc.on("close", () => {
+      try {
+        const deps = JSON.parse(out)?.dependencies ?? {};
+        for (const p of installed) {
+          currentVersions.set(p.name, deps[p.name]?.version ?? null);
+        }
+      } catch (_e) {}
+      resolve();
+    });
+    setTimeout(() => {
+      try {
+        proc.kill();
+      } catch (_e) {}
+      resolve();
+    }, 6000);
+  });
+
+  // Step 2: get latest versions — one spawn per package, all in parallel
+  await Promise.all(
+    installed.map(
+      (p) =>
+        new Promise((resolve) => {
+          let out = "";
+          const proc = isWin
+            ? spawn("npm show " + p.name + " version", [], {
+                stdio: ["ignore", "pipe", "pipe"],
+                shell: true,
+              })
+            : spawn("npm", ["show", p.name, "version"], {
+                stdio: ["ignore", "pipe", "pipe"],
+              });
+          proc.stdout?.on("data", (d) => {
+            out += d;
+          });
+          proc.on("error", () => resolve());
+          proc.on("close", () => {
+            const latest = out.trim() || null;
+            const current = currentVersions.get(p.name) ?? null;
+            updateCache.set(p.name, {
+              current,
+              latest,
+              hasUpdate: !!(current && latest && current !== latest),
+            });
+            resolve();
+          });
+          setTimeout(() => {
+            try {
+              proc.kill();
+            } catch (_e) {}
+            resolve();
+          }, 6000);
+        }),
+    ),
   );
+
   updateCacheReady = true;
 }
 
@@ -1265,8 +1309,14 @@ async function main() {
 
   let busy = false; // prevent keypress re-entry during install/uninstall/update
 
-  process.stdin.on("keypress", async (str, key) => {
-    if (!key || busy) return;
+  const keypressHandler = async (str, key) => {
+    if (!key) return;
+    // Q or Ctrl+C always exits immediately, even during operations
+    if (str === "q" || str === "Q" || (key.ctrl && key.name === "c")) {
+      cleanup();
+      process.exit(0);
+    }
+    if (busy) return;
 
     // ── Confirm uninstall mode ────────────────────────────────────────────────
     if (state.mode === MODE.CONFIRM_UNINSTALL) {
@@ -1295,25 +1345,8 @@ async function main() {
         } catch {
           console.log("\n  " + red("✗ Failed to uninstall " + p.label) + "\n");
         }
-        const uninstallChoice = await waitForQ(true);
-        if (uninstallChoice === "menu") {
-          installedCache = buildInstalledCache();
-          updateCacheReady = false;
-          updateCache.clear();
-          // Remove ALL old listeners before re-entering to avoid double-fire
-          busy = false;
-          process.stdin.removeAllListeners("keypress");
-          enterAltScreen();
-          hideCursor();
-          render(state);
-          prefetchUpdateCache().then(() => render(state));
-          readline.emitKeypressEvents(process.stdin);
-          try { process.stdin.setRawMode(true); } catch (_e) {}
-          process.stdin.resume();
-        } else {
-          cleanup();
-          process.exit(0);
-        }
+        busy = false;
+        reEnterMenu(state, render, prefetchUpdateCache, keypressHandler);
       } else {
         state.mode = MODE.LIST;
         state.confirmTarget = null;
@@ -1323,12 +1356,6 @@ async function main() {
     }
 
     // ── Normal mode ───────────────────────────────────────────────────────────
-
-    if (key.name === "q" || (key.ctrl && key.name === "c")) {
-      cleanup();
-      console.log("\n  " + gray("Goodbye.\n"));
-      process.exit(0);
-    }
 
     if (key.name === "up") {
       state.cursor = (state.cursor - 1 + PACKAGES.length) % PACKAGES.length;
@@ -1436,23 +1463,8 @@ async function main() {
         );
       }
       console.log("\n" + div2 + "\n");
-      const updateChoice = await waitForQ(true);
-      if (updateChoice === "menu") {
-        installedCache = buildInstalledCache();
-        updateCacheReady = false;
-        updateCache.clear();
-        busy = false;
-        process.stdin.removeAllListeners("keypress");
-        enterAltScreen();
-        hideCursor();
-        render(state);
-        prefetchUpdateCache().then(() => render(state));
-        readline.emitKeypressEvents(process.stdin);
-        try { process.stdin.setRawMode(true); } catch (_e) {}
-        process.stdin.resume();
-      } else {
-        process.exit(0);
-      }
+      busy = false;
+      reEnterMenu(state, render, prefetchUpdateCache, keypressHandler);
       return;
     }
 
@@ -1497,20 +1509,29 @@ async function main() {
         console.log(
           "  " + green("✓") + " " + bold(green(p.label)) + " installed",
         );
-        // Show version from updateCache (already fetched in background)
+        // Show version from updateCache (fetched in background)
         const uc = updateCache.get(p.name);
         if (uc && uc.current) {
           console.log(
-            "  " + gray("Version: ") + cyan("v" + uc.current) +
-            (uc.hasUpdate ? "  " + gray("Latest: ") + green("v" + uc.latest) + "  " + yellow("↑ update available") :
-             uc.latest ? "  " + dim(gray("(up to date)")) : ""),
+            "  " +
+              gray("Version: ") +
+              cyan("v" + uc.current) +
+              (uc.hasUpdate
+                ? "  " +
+                  gray("Latest: ") +
+                  green("v" + uc.latest) +
+                  "  " +
+                  yellow("↑ update available")
+                : uc.latest
+                  ? "  " + dim(gray("(up to date)"))
+                  : ""),
           );
         }
         console.log("  " + gray("Usage: ") + cyan(p.cmd + " --help"));
+      }
 
       console.log("\n" + div2);
       console.log(
-      }
         "  " +
           green("✓ All done! ") +
           bold(yellow(String(toInstall.length))) +
@@ -1542,65 +1563,37 @@ async function main() {
         );
       }
 
-      const installChoice = await waitForQ(true);
-      if (installChoice === "menu") {
-        installedCache = buildInstalledCache();
-        updateCacheReady = false;
-        updateCache.clear();
-        busy = false;
-        process.stdin.removeAllListeners("keypress");
-        enterAltScreen();
-        hideCursor();
-        render(state);
-        prefetchUpdateCache().then(() => render(state));
-        readline.emitKeypressEvents(process.stdin);
-        try { process.stdin.setRawMode(true); } catch (_e) {}
-        process.stdin.resume();
-      } else {
-        process.exit(0);
-      }
+      // Auto-return to menu after install
+      await sleep(800);
+      busy = false;
+      reEnterMenu(state, render, prefetchUpdateCache, keypressHandler);
     }
-  });
+  };
+  process.stdin.on("keypress", keypressHandler);
 }
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// ── Wait for Q/Enter ─────────────────────────────────────────────────────────
-// Completely tears down raw mode and uses a clean readline interface.
-// This avoids the double-listener / garbled-output bug on Windows.
-function waitForQ(returnToMenu = false) {
-  return new Promise((resolve) => {
-    const divW = Math.min(process.stdout.columns || 80, 72);
-    const div2 = gray("═".repeat(divW));
-    console.log(div2);
-    if (returnToMenu) {
-      console.log(
-        "  " + gray("Press ") + cyan("q") + gray(" to return to menu  ·  any other key to exit"),
-      );
-    } else {
-      console.log("  " + gray("Press any key to exit"));
-    }
-    console.log(div2 + "\n");
-    showCursor();
-
-    // Fully disable raw mode so stdin behaves normally
-    try { process.stdin.setRawMode(false); } catch (_e) {}
-    process.stdin.resume();
-    readline.emitKeypressEvents(process.stdin);
-
-    const onKey = (str, key) => {
-      if (!key) return;
-      // Ignore modifier-only keypresses
-      if (!str && !["return","escape","q","space"].includes(key.name)) return;
-      process.stdin.removeListener("keypress", onKey);
-      process.stdin.pause();
-      const isQ = str === "q" || str === "Q";
-      resolve(isQ && returnToMenu ? "menu" : "exit");
-    };
-    process.stdin.once("keypress", onKey);
-  });
+// ── Re-enter the interactive menu cleanly ───────────────────────────────────
+function reEnterMenu(state, render, prefetchUpdateCache, keypressHandler) {
+  installedCache = buildInstalledCache();
+  updateCacheReady = false;
+  updateCache.clear();
+  process.stdin.removeAllListeners("keypress");
+  process.stdin.pause();
+  enterAltScreen();
+  hideCursor();
+  render(state);
+  prefetchUpdateCache().then(() => render(state));
+  readline.emitKeypressEvents(process.stdin);
+  try {
+    process.stdin.setRawMode(true);
+  } catch (_e) {}
+  process.stdin.resume();
+  // Re-attach the keypress handler — this is what was missing
+  process.stdin.on("keypress", keypressHandler);
 }
 
 main().catch((err) => {

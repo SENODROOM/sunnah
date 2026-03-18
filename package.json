@@ -1,6 +1,6 @@
 {
   "name": "sunnah",
-  "version": "1.3.2",
+  "version": "1.3.6",
   "description": "Interactive CLI installer for Sunnah hadith npm packages",
   "bin": {
     "sunnah": "./bin/index.js"
