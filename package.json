@@ -1,6 +1,6 @@
 {
   "name": "sunnah",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "One package. Every major Hadith collection. CLI, Node.js, React, Vue — all supported",
   "main": "index.js",
   "scripts": {
