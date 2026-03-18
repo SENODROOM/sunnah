@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import os from "os";
-import { execSync, spawn } from "child_process";
+import { execSync, spawnSync, spawn } from "child_process";
 import readline from "readline";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +16,23 @@ const pkg = JSON.parse(
 // ── Windows compatibility ─────────────────────────────────────────────────────
 const isWin = process.platform === "win32";
 const NPM = isWin ? "npm.cmd" : "npm";
+
+// ── Safe npm runner — avoids DEP0190 on all platforms ─────────────────────────
+// On Windows, .cmd files can't be spawn'd directly without shell:true, but
+// passing an args array with shell:true triggers DEP0190.  Solution: use the
+// underlying `npm` (not npm.cmd) via spawnSync with no shell, which works on
+// all Node ≥ 16 Windows installs because npm ships a real .exe alongside .cmd.
+const NPM_BIN = isWin ? "npm" : "npm"; // same string; kept explicit for clarity
+
+function npmSync(args, opts = {}) {
+  const result = spawnSync(NPM_BIN, args, {
+    encoding: "utf8",
+    timeout: opts.timeout ?? 15000,
+    stdio: opts.stdio ?? ["ignore", "pipe", "pipe"],
+  });
+  if (result.error) throw result.error;
+  return result.stdout ?? "";
+}
 
 // ── Persistence: remember last selections ────────────────────────────────────
 const STATE_FILE = path.join(os.homedir(), ".sunnah-state.json");
@@ -193,10 +210,10 @@ function animateInstall(pkgName) {
     };
 
     setTimeout(tick, stages[0].ms);
-    // shell: true only on Windows (needed for npm.cmd); never on Unix to avoid DEP0190
-    const proc = spawn(NPM, ["install", "-g", pkgName], {
+    // Use "npm" (the real executable, not npm.cmd) with no shell on all platforms.
+    // This avoids DEP0190 and the EINVAL crash on Windows caused by npm.cmd + shell:true + args array.
+    const proc = spawn(NPM_BIN, ["install", "-g", pkgName], {
       stdio: ["ignore", "pipe", "pipe"],
-      ...(isWin ? { shell: false } : {}),
     });
     proc.on("error", () => {
       npmDone = true;
@@ -212,11 +229,7 @@ function buildInstalledCache() {
   const cache = new Map();
   let out = "";
   try {
-    out = execSync(`${NPM} list -g --depth=0`, {
-      encoding: "utf8",
-      timeout: 10000,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    out = npmSync(["list", "-g", "--depth=0"], { timeout: 10000 });
   } catch (e) {
     out = e.stdout || "";
   }
@@ -228,11 +241,7 @@ function buildInstalledCache() {
 
 function getLatestVersion(name) {
   try {
-    return execSync(`${NPM} show ${name} version`, {
-      encoding: "utf8",
-      timeout: 8000,
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
+    return npmSync(["show", name, "version"], { timeout: 8000 }).trim();
   } catch {
     return null;
   }
@@ -240,11 +249,7 @@ function getLatestVersion(name) {
 
 function getInstalledVersion(name) {
   try {
-    const out = execSync(`${NPM} list -g ${name} --depth=0`, {
-      encoding: "utf8",
-      timeout: 8000,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    const out = npmSync(["list", "-g", name, "--depth=0"], { timeout: 8000 });
     const match = out.match(new RegExp(name + "@([\\d.]+)"));
     return match ? match[1] : null;
   } catch {
@@ -883,9 +888,7 @@ function cmdUninstall(targets) {
     }
     console.log(yellow("  Uninstalling ") + bold(white(p.label)) + yellow("…"));
     try {
-      execSync(`${NPM} uninstall -g ${p.name}`, {
-        stdio: "inherit",
-      });
+      npmSync(["uninstall", "-g", p.name], { stdio: "inherit" });
       installedCache.set(p.name, false);
       console.log(
         green("  ✓ ") + bold(green(p.label)) + green(" uninstalled.\n"),
@@ -1214,9 +1217,7 @@ async function main() {
             yellow("…\n"),
         );
         try {
-          execSync(`${NPM} uninstall -g ${p.name}`, {
-            stdio: "inherit",
-          });
+          npmSync(["uninstall", "-g", p.name], { stdio: "inherit" });
           installedCache.set(p.name, false);
           state.selected.delete(PACKAGES.indexOf(p));
           console.log(
