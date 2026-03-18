@@ -15,23 +15,36 @@ const pkg = JSON.parse(
 
 // ── Windows compatibility ─────────────────────────────────────────────────────
 const isWin = process.platform === "win32";
-const NPM = isWin ? "npm.cmd" : "npm";
 
-// ── Safe npm runner — avoids DEP0190 on all platforms ─────────────────────────
-// On Windows, .cmd files can't be spawn'd directly without shell:true, but
-// passing an args array with shell:true triggers DEP0190.  Solution: use the
-// underlying `npm` (not npm.cmd) via spawnSync with no shell, which works on
-// all Node ≥ 16 Windows installs because npm ships a real .exe alongside .cmd.
-const NPM_BIN = isWin ? "npm" : "npm"; // same string; kept explicit for clarity
-
+// ── Safe npm runner — zero warnings on all platforms ─────────────────────────
+// DEP0190 fires when shell:true is combined with a separate args array because
+// Node concatenates them unsafely.  EINVAL fires on Windows when you try to
+// spawn npm.cmd without a shell.
+//
+// Solution: on Windows pass a single pre-joined command string to shell:true
+// (no array = no concatenation = no DEP0190).  On Unix use an args array with
+// no shell at all.  pkgName values come from our own PACKAGES constant so
+// there is no injection risk.
 function npmSync(args, opts = {}) {
-  const result = spawnSync(NPM_BIN, args, {
-    encoding: "utf8",
-    timeout: opts.timeout ?? 15000,
-    stdio: opts.stdio ?? ["ignore", "pipe", "pipe"],
-  });
-  if (result.error) throw result.error;
-  return result.stdout ?? "";
+  if (isWin) {
+    // Single string → cmd.exe handles it; no args array → no DEP0190
+    const result = spawnSync("npm " + args.join(" "), [], {
+      encoding: "utf8",
+      timeout: opts.timeout ?? 15000,
+      stdio: opts.stdio ?? ["ignore", "pipe", "pipe"],
+      shell: true,
+    });
+    if (result.error) throw result.error;
+    return result.stdout ?? "";
+  } else {
+    const result = spawnSync("npm", args, {
+      encoding: "utf8",
+      timeout: opts.timeout ?? 15000,
+      stdio: opts.stdio ?? ["ignore", "pipe", "pipe"],
+    });
+    if (result.error) throw result.error;
+    return result.stdout ?? "";
+  }
 }
 
 // ── Persistence: remember last selections ────────────────────────────────────
@@ -210,11 +223,18 @@ function animateInstall(pkgName) {
     };
 
     setTimeout(tick, stages[0].ms);
-    // Use "npm" (the real executable, not npm.cmd) with no shell on all platforms.
-    // This avoids DEP0190 and the EINVAL crash on Windows caused by npm.cmd + shell:true + args array.
-    const proc = spawn(NPM_BIN, ["install", "-g", pkgName], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    // Windows: shell:true required for npm.cmd, but passing an args array alongside
+    //   shell:true triggers DEP0190. Fix: pass a single pre-joined string so Node
+    //   hands it to cmd.exe as-is — no concatenation, no warning, no EINVAL.
+    // Unix: spawn directly without shell — clean and safe.
+    const proc = isWin
+      ? spawn("npm install -g " + pkgName, [], {
+          stdio: ["ignore", "pipe", "pipe"],
+          shell: true,
+        })
+      : spawn("npm", ["install", "-g", pkgName], {
+          stdio: ["ignore", "pipe", "pipe"],
+        });
     proc.on("error", () => {
       npmDone = true;
     });
