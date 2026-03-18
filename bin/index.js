@@ -247,33 +247,55 @@ function animateInstall(pkgName) {
 // ── Installed cache — ONE npm call at startup, Map lookup during render ───────
 function buildInstalledCache() {
   const cache = new Map();
+  // Pre-mark all as false so the UI never hangs waiting
+  for (const p of PACKAGES) cache.set(p.name, false);
   let out = "";
   try {
-    out = npmSync(["list", "-g", "--depth=0"], { timeout: 10000 });
+    // Use --json for faster, reliable parsing; short timeout so UI opens fast
+    out = npmSync(["list", "-g", "--depth=0", "--json"], { timeout: 6000 });
+    const parsed = JSON.parse(out);
+    const deps = parsed?.dependencies ?? {};
+    for (const p of PACKAGES) {
+      cache.set(p.name, p.name in deps);
+    }
   } catch (e) {
-    out = e.stdout || "";
-  }
-  for (const p of PACKAGES) {
-    cache.set(p.name, out.includes(p.name));
+    // Fallback: plain text parse on error/timeout
+    const text = (e && e.stdout) || out || "";
+    for (const p of PACKAGES) {
+      cache.set(p.name, text.includes(p.name));
+    }
   }
   return cache;
 }
 
 function getLatestVersion(name) {
   try {
-    return npmSync(["show", name, "version"], { timeout: 8000 }).trim();
+    // Use --json for cleaner parsing
+    const out = npmSync(["show", name, "version", "--json"], { timeout: 6000 });
+    return JSON.parse(out.trim());
   } catch {
-    return null;
+    // Fallback: plain text
+    try {
+      return npmSync(["show", name, "version"], { timeout: 6000 }).trim();
+    } catch {
+      return null;
+    }
   }
 }
 
 function getInstalledVersion(name) {
   try {
-    const out = npmSync(["list", "-g", name, "--depth=0"], { timeout: 8000 });
-    const match = out.match(new RegExp(name + "@([\\d.]+)"));
+    // Use --json for reliable, fast parsing
+    const out = npmSync(["list", "-g", name, "--depth=0", "--json"], {
+      timeout: 6000,
+    });
+    const parsed = JSON.parse(out);
+    return parsed?.dependencies?.[name]?.version ?? null;
+  } catch (e) {
+    // Fallback: text parse
+    const text = (e && e.stdout) || "";
+    const match = text.match(new RegExp(name + "@([\\d.]+)"));
     return match ? match[1] : null;
-  } catch {
-    return null;
   }
 }
 
@@ -287,16 +309,56 @@ let updateCacheReady = false;
 
 async function prefetchUpdateCache() {
   const installed = PACKAGES.filter((p) => isInstalled(p.name));
+  // Run all version checks in parallel — non-blocking for the UI
   await Promise.all(
-    installed.map(async (p) => {
-      const current = getInstalledVersion(p.name);
-      const latest = getLatestVersion(p.name);
-      updateCache.set(p.name, {
-        current,
-        latest,
-        hasUpdate: !!(current && latest && current !== latest),
-      });
-    }),
+    installed.map(
+      (p) =>
+        new Promise((resolve) => {
+          // Use spawn (not spawnSync) to keep event loop free
+          const args = isWin
+            ? { cmd: "npm show " + p.name + " version --json", shell: true }
+            : { cmd: "npm", args: ["show", p.name, "version", "--json"] };
+
+          let stdout = "";
+          let proc;
+          if (isWin) {
+            proc = spawn(args.cmd, [], {
+              stdio: ["ignore", "pipe", "pipe"],
+              shell: true,
+            });
+          } else {
+            proc = spawn("npm", ["show", p.name, "version", "--json"], {
+              stdio: ["ignore", "pipe", "pipe"],
+            });
+          }
+          proc.stdout?.on("data", (d) => {
+            stdout += d;
+          });
+          proc.on("error", () => resolve());
+          proc.on("close", () => {
+            let latest = null;
+            try {
+              latest = JSON.parse(stdout.trim());
+            } catch {
+              latest = stdout.trim() || null;
+            }
+            const current = getInstalledVersion(p.name);
+            updateCache.set(p.name, {
+              current,
+              latest,
+              hasUpdate: !!(current && latest && current !== latest),
+            });
+            resolve();
+          });
+          // Safety timeout — don't wait forever
+          setTimeout(() => {
+            try {
+              proc.kill();
+            } catch {}
+            resolve();
+          }, 8000);
+        }),
+    ),
   );
   updateCacheReady = true;
 }
@@ -1249,12 +1311,21 @@ async function main() {
         } catch {
           console.log("\n  " + red("✗ Failed to uninstall " + p.label) + "\n");
         }
-        await sleep(1200);
-        enterAltScreen();
-        hideCursor();
-        readline.emitKeypressEvents(process.stdin);
-        process.stdin.setRawMode(true);
-        render(state);
+        const uninstallChoice = await waitForQ(true);
+        if (uninstallChoice === "menu") {
+          installedCache = buildInstalledCache();
+          updateCacheReady = false;
+          updateCache.clear();
+          enterAltScreen();
+          hideCursor();
+          render(state);
+          prefetchUpdateCache().then(() => render(state));
+          readline.emitKeypressEvents(process.stdin);
+          process.stdin.setRawMode(true);
+        } else {
+          cleanup();
+          process.exit(0);
+        }
       } else {
         state.mode = MODE.LIST;
         state.confirmTarget = null;
@@ -1376,8 +1447,21 @@ async function main() {
         );
       }
       console.log("\n" + div2 + "\n");
-      showCursor();
-      process.exit(0);
+      const updateChoice = await waitForQ(true);
+      if (updateChoice === "menu") {
+        installedCache = buildInstalledCache();
+        updateCacheReady = false;
+        updateCache.clear();
+        enterAltScreen();
+        hideCursor();
+        render(state);
+        prefetchUpdateCache().then(() => render(state));
+        readline.emitKeypressEvents(process.stdin);
+        process.stdin.setRawMode(true);
+      } else {
+        process.exit(0);
+      }
+      return;
     }
 
     // enter = install
@@ -1417,10 +1501,80 @@ async function main() {
         console.log("  " + dim("npm install -g " + p.name) + "\n");
         await animateInstall(p.name);
         installedCache.set(p.name, true);
+
+        // Show installed version vs latest version
+        const installedVer = getInstalledVersion(p.name);
+        const latestVer = getLatestVersion(p.name);
+        const verLine = installedVer
+          ? "  " +
+            gray("Installed: ") +
+            cyan("v" + installedVer) +
+            (latestVer && latestVer !== installedVer
+              ? "  " +
+                gray("Latest: ") +
+                green("v" + latestVer) +
+                "  " +
+                yellow("↑ update available")
+              : latestVer
+                ? "  " +
+                  gray("Latest: ") +
+                  green("v" + latestVer) +
+                  "  " +
+                  dim(gray("(up to date)"))
+                : "")
+          : "";
+
         console.log(
           "  " + green("✓") + " " + bold(green(p.label)) + " installed",
         );
+        if (verLine) console.log(verLine);
         console.log("  " + gray("Usage: ") + cyan(p.cmd + " --help"));
+
+        // If an update is available, ask the user
+        if (installedVer && latestVer && installedVer !== latestVer) {
+          console.log(
+            "\n  " +
+              yellow("⚠  A newer version ") +
+              green("v" + latestVer) +
+              yellow(" is available (you have v" + installedVer + ")."),
+          );
+          console.log(
+            "  " +
+              gray("Update now? ") +
+              green("y") +
+              gray(" yes  ") +
+              red("n") +
+              gray(" skip"),
+          );
+          const doUpdate = await new Promise((resolve) => {
+            try {
+              readline.emitKeypressEvents(process.stdin);
+            } catch {}
+            try {
+              if (!process.stdin.isRaw) process.stdin.setRawMode(true);
+            } catch {}
+            process.stdin.resume();
+            const handler = (s) => {
+              process.stdin.removeListener("keypress", handler);
+              resolve(s === "y" || s === "Y");
+            };
+            process.stdin.on("keypress", handler);
+          });
+          if (doUpdate) {
+            console.log("\n  " + cyan("Updating " + p.label + "…\n"));
+            await animateInstall(p.name);
+            const newVer = getInstalledVersion(p.name);
+            console.log(
+              "  " +
+                green("✓") +
+                " " +
+                bold(green(p.label)) +
+                gray(" updated to v" + (newVer || latestVer)),
+            );
+          } else {
+            console.log("  " + gray("Skipped update."));
+          }
+        }
       }
 
       console.log("\n" + div2);
@@ -1456,15 +1610,80 @@ async function main() {
         );
       }
 
-      console.log(div2 + "\n");
-      showCursor();
-      process.exit(0);
+      const installChoice = await waitForQ(true);
+      if (installChoice === "menu") {
+        installedCache = buildInstalledCache();
+        updateCacheReady = false;
+        updateCache.clear();
+        enterAltScreen();
+        hideCursor();
+        render(state);
+        prefetchUpdateCache().then(() => render(state));
+        readline.emitKeypressEvents(process.stdin);
+        process.stdin.setRawMode(true);
+      } else {
+        process.exit(0);
+      }
     }
   });
 }
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+// ── Wait for Q/Enter before returning to menu or exiting ──────────────────────
+function waitForQ(returnToMenu = false) {
+  return new Promise((resolve) => {
+    const divW = Math.min(process.stdout.columns || 80, 72);
+    const div2 = gray("═".repeat(divW));
+    console.log(div2);
+    if (returnToMenu) {
+      console.log(
+        "  " +
+          gray("Press ") +
+          cyan("q") +
+          gray(" to return to menu  ·  ") +
+          cyan("enter") +
+          gray(" to exit"),
+      );
+    } else {
+      console.log(
+        "  " +
+          gray("Press ") +
+          cyan("q") +
+          gray(" or ") +
+          cyan("enter") +
+          gray(" to exit"),
+      );
+    }
+    console.log(div2 + "\n");
+    showCursor();
+
+    try {
+      readline.emitKeypressEvents(process.stdin);
+    } catch {}
+    try {
+      if (!process.stdin.isRaw) process.stdin.setRawMode(true);
+    } catch {}
+    process.stdin.resume();
+
+    const onKey = (str, key) => {
+      if (!key) return;
+      const isQ = str === "q" || str === "Q";
+      const isEnter = key.name === "return";
+      const isCtrlC = key.ctrl && key.name === "c";
+      if (isQ || isEnter || isCtrlC) {
+        process.stdin.removeListener("keypress", onKey);
+        try {
+          process.stdin.setRawMode(false);
+        } catch {}
+        process.stdin.pause();
+        resolve(isQ && returnToMenu ? "menu" : "exit");
+      }
+    };
+    process.stdin.on("keypress", onKey);
+  });
 }
 
 main().catch((err) => {
