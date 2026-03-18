@@ -1,0 +1,62 @@
+{
+  "name": "sunan-abi-dawud",
+  "version": "1.0.1",
+  "description": "Complete Sunan Abi Dawud hadith collection. Tiny package (~3KB), data from CDN. CLI + Node.js + React/Vue/Vite.",
+  "type": "module",
+  "main": "./index.cjs",
+  "module": "./index.browser.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "browser": "./index.browser.js",
+      "require": "./index.cjs",
+      "import": "./index.node.js"
+    },
+    "./chapters/*": "./chapters/*"
+  },
+  "bin": {
+    "dawud": "bin/index.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
+  },
+  "keywords": [
+    "islam",
+    "hadith",
+    "dawud",
+    "abu-dawud",
+    "sunan",
+    "sunnah",
+    "json",
+    "arabic",
+    "english",
+    "quran",
+    "react",
+    "hook"
+  ],
+  "author": "muhammadsaadamin",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SENODROOM/sunan-abi-dawud.git"
+  },
+  "files": [
+    "index.js",
+    "index.browser.js",
+    "index.cjs",
+    "index.node.js",
+    "index.d.ts",
+    "bin/index.js",
+    "bin/dawud.json",
+    "chapters/"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "bugs": {
+    "url": "https://github.com/SENODROOM/sunan-abi-dawud/issues"
+  },
+  "homepage": "https://github.com/SENODROOM/sunan-abi-dawud#readme"
+}
