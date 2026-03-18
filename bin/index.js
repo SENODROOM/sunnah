@@ -12,6 +12,10 @@ const pkg = JSON.parse(
   fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"),
 );
 
+// ── Windows compatibility ─────────────────────────────────────────────────────
+const isWin = process.platform === "win32";
+const NPM = isWin ? "npm.cmd" : "npm";
+
 // ── Colors ────────────────────────────────────────────────────────────────────
 const c = {
   reset: "\x1b[0m",
@@ -117,7 +121,6 @@ function animateInstall(pkgName) {
     let stageIdx = 0;
     let npmDone = false;
 
-    // Print initial bar on its own line
     process.stdout.write(drawBar(stages[0].label, 0) + "\n");
 
     const tick = () => {
@@ -128,14 +131,12 @@ function animateInstall(pkgName) {
       const step = (stage.end - prevEnd) / 22;
       percent = Math.min(percent + step, stage.end);
 
-      // Overwrite the bar line
       process.stdout.write("\r\x1b[K");
       process.stdout.write(drawBar(stage.label, percent));
 
       if (percent >= stage.end) {
         stageIdx++;
         if (stageIdx >= stages.length) {
-          // All visual stages done — wait for npm
           const poll = setInterval(() => {
             if (npmDone) {
               clearInterval(poll);
@@ -154,10 +155,17 @@ function animateInstall(pkgName) {
 
     setTimeout(tick, stages[0].ms);
 
-    // Actually run npm install -g
-    const proc = spawn("npm", ["install", "-g", pkgName], {
+    // spawn npm.cmd on Windows, npm on Unix
+    const proc = spawn(NPM, ["install", "-g", pkgName], {
       stdio: ["ignore", "pipe", "pipe"],
+      shell: isWin,
     });
+
+    proc.on("error", () => {
+      // resolve anyway so the UI doesn't hang on spawn failure
+      npmDone = true;
+    });
+
     proc.on("close", () => {
       npmDone = true;
     });
@@ -167,7 +175,10 @@ function animateInstall(pkgName) {
 // ── Check if a package is already installed globally ─────────────────────────
 function isInstalled(name) {
   try {
-    execSync(`npm list -g ${name} --depth=0 2>/dev/null`, { stdio: "ignore" });
+    execSync(`${NPM} list -g ${name} --depth=0`, {
+      stdio: "ignore",
+      shell: isWin,
+    });
     return true;
   } catch {
     return false;
