@@ -1,20 +1,27 @@
 {
   "name": "sunnah",
-  "version": "1.0.3",
-  "description": "One package. Every major Hadith collection. CLI, Node.js, React, Vue — all supported",
-  "main": "index.js",
+  "version": "1.1.2",
+  "description": "Interactive CLI installer for Sunnah hadith npm packages",
+  "bin": {
+    "sunnah": "./bin/index.js"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node bin/index.js --list"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/SENODROOM/sunnah.git"
-  },
-  "keywords": [],
+  "keywords": [
+    "sunnah",
+    "hadith",
+    "bukhari",
+    "muslim",
+    "tirmidhi",
+    "dawud",
+    "islam",
+    "quran",
+    "cli"
+  ],
   "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/SENODROOM/sunnah/issues"
-  },
-  "homepage": "https://github.com/SENODROOM/sunnah#readme"
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
 }
