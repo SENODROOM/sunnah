@@ -2,14 +2,16 @@
 
 <h1>📿 Sunnah</h1>
 
-![npm version](https://img.shields.io/badge/npm-coming%20soon-orange?style=for-the-badge&logo=npm)
-![license](https://img.shields.io/badge/license-AGPL--3.0-blue?style=for-the-badge&logo=gnu)
-![status](https://img.shields.io/badge/status-in%20development-yellow?style=for-the-badge)
+![npm version](https://img.shields.io/npm/v/sunnah?style=for-the-badge&logo=npm)
+![npm downloads](https://img.shields.io/npm/dt/sunnah?style=for-the-badge&logo=npm)
+![npm downloads per month](https://img.shields.io/npm/dm/sunnah?style=for-the-badge&logo=npm)
+![license](https://img.shields.io/github/license/SENODROOM/sunnah?style=for-the-badge&logo=gnu)
+![node version](https://img.shields.io/node/v/sunnah?style=for-the-badge&logo=node.js)
 ![GitHub stars](https://img.shields.io/github/stars/SENODROOM/sunnah?style=for-the-badge&logo=github)
 
-**📚 One package. Every major Hadith collection. CLI, Node.js, React, Vue — all supported.**
+**📚 One command. Every major Hadith collection. Interactive CLI installer for the entire Sunnah ecosystem.**
 
-_Coming soon to npm_
+[![NPM](https://nodei.co/npm/sunnah.png)](https://nodei.co/npm/sunnah/)
 
 </div>
 
@@ -17,166 +19,210 @@ _Coming soon to npm_
 
 ## 🌙 What is Sunnah?
 
-`sunnah` is an upcoming npm package that gives developers programmatic access to the major hadith collections of Islam — in one unified, consistent API. Whether you're building a web app, a mobile app, a CLI tool, or a backend API, `sunnah` will be the single source for all authentic hadith literature.
-
----
-
-## 📚 Planned Hadith Collections
-
-| Book                  | Author          | Hadiths | Status                                                                            |
-| --------------------- | --------------- | ------- | --------------------------------------------------------------------------------- |
-| **Sahih al-Bukhari**  | Imam al-Bukhari | 7,277   | ✅ Available ([sahih-al-bukhari](https://www.npmjs.com/package/sahih-al-bukhari)) |
-| **Sahih Muslim**      | Imam Muslim     | 7,563   | 🔜 Coming Soon                                                                    |
-| **Sunan Abu Dawud**   | Abu Dawud       | 5,274   | 🔜 Coming Soon                                                                    |
-| **Jami at-Tirmidhi**  | Imam Tirmidhi   | 3,956   | 🔜 Coming Soon                                                                    |
-| **Sunan an-Nasa'i**   | Imam an-Nasa'i  | 5,758   | 🔜 Coming Soon                                                                    |
-| **Sunan Ibn Majah**   | Ibn Majah       | 4,341   | 🔜 Coming Soon                                                                    |
-| **Muwatta Malik**     | Imam Malik      | 1,832   | 🔜 Coming Soon                                                                    |
-| **Musnad Ahmad**      | Imam Ahmad      | 27,000+ | 🔜 Coming Soon                                                                    |
-| **Riyad as-Salihin**  | Imam an-Nawawi  | 1,896   | 🔜 Coming Soon                                                                    |
-| **Al-Adab Al-Mufrad** | Imam al-Bukhari | 1,322   | 🔜 Coming Soon                                                                    |
-
----
-
-## 🚀 Planned API
-
-### Install a specific book
+`sunnah` is an interactive CLI package manager for the major hadith collections of Islam. Install, manage, and update every book in the Sunnah ecosystem from a single terminal UI — with real-time progress bars, keyboard navigation, and zero config.
 
 ```bash
-# Install the full package
-npm install sunnah
+npm install -g sunnah
+sunnah
+```
 
-# Or install globally for CLI access
+That's it. A beautiful full-screen terminal UI opens, showing every available hadith package — select what you want, press enter, watch it install.
+
+---
+
+## 📦 Available Packages
+
+| Book                 | Package                                                          | Hadiths | Author           | CLI Command |
+| -------------------- | ---------------------------------------------------------------- | ------- | ---------------- | ----------- |
+| **Sahih al-Bukhari** | [`sahih-al-bukhari`](https://npmjs.com/package/sahih-al-bukhari) | 7,563   | Imam al-Bukhari  | `bukhari`   |
+| **Sahih Muslim**     | [`sahih-muslim`](https://npmjs.com/package/sahih-muslim)         | 7,470   | Imam Muslim      | `muslim`    |
+| **Sunan Abi Dawud**  | [`sunan-abi-dawud`](https://npmjs.com/package/sunan-abi-dawud)   | 5,274   | Imam Abu Dawud   | `dawud`     |
+| **Jami al-Tirmidhi** | [`jami-al-tirmidhi`](https://npmjs.com/package/jami-al-tirmidhi) | 3,956   | Imam al-Tirmidhi | `tirmidhi`  |
+
+---
+
+## 🚀 Installation
+
+```bash
 npm install -g sunnah
 ```
 
-### CLI — download and browse any book
+---
+
+## 🖥️ Usage
+
+### Interactive UI (default)
 
 ```bash
-# Download a hadith book
-sunnah download bukhari
-sunnah download muslim
-sunnah download tirmidhi
-
-# Browse hadiths
-sunnah bukhari 1
-sunnah muslim 2345 --arabic
-sunnah tirmidhi 23 34 --both
-
-# List all available books
-sunnah list
-
-# Show help
-sunnah --help
+sunnah
 ```
 
-### Node.js
+Opens a full-screen interactive installer:
 
-```javascript
-import { bukhari, muslim, tirmidhi } from "sunnah";
+```
+══════════════════════════════════════════════════════════════════════
+  📚 Sunnah Package Manager  v1.1.2
+  ↑↓ navigate  space select  a all  i info  u uninstall  enter install  q quit
+══════════════════════════════════════════════════════════════════════
 
-// Each book has the same consistent API
-console.log(bukhari.get(1));
-console.log(muslim.search("prayer"));
-console.log(tirmidhi.getRandom());
-console.log(tirmidhi.getByChapter(3));
+  ▶ [✓]  Sahih al-Bukhari  ● installed
+         Imam Muhammad ibn Ismail al-Bukhari
+         The most authentic collection of hadith...
+         Hadiths: 7,563   CLI: bukhari --help
 
-// Or import all books at once
-import sunnah from "sunnah";
-sunnah.bukhari.get(1);
-sunnah.muslim.get(1);
+    [ ]  Sahih Muslim  ○ not installed
+    [ ]  Sunan Abi Dawud  ○ not installed
+    [ ]  Jami al-Tirmidhi  ○ not installed
+
+──────────────────────────────────────────────────────────────────────
+  ● 1 selected: sahih-al-bukhari
+──────────────────────────────────────────────────────────────────────
 ```
 
-### React — one command setup
+### Keyboard Controls
+
+| Key     | Action                                |
+| ------- | ------------------------------------- |
+| `↑` `↓` | Navigate packages                     |
+| `space` | Toggle select                         |
+| `a`     | Select all / deselect all             |
+| `i`     | Show package info + installed version |
+| `u`     | Uninstall selected                    |
+| `enter` | Install selected                      |
+| `q`     | Quit                                  |
+
+### Non-interactive commands
 
 ```bash
-# Inside your React project
-sunnah --react
-```
-
-Generates hooks for every book:
-
-```jsx
-import { useBukhari, useMuslim, useTirmidhi } from "../hooks/useSunnah";
-
-function HadithComponent() {
-  const bukhari = useBukhari();
-  const muslim = useMuslim();
-
-  if (!bukhari || !muslim) return <p>Loading...</p>;
-
-  return (
-    <div>
-      <p>{bukhari.getRandom().english.text}</p>
-      <p>{muslim.getRandom().english.text}</p>
-    </div>
-  );
-}
+sunnah --list         # List all packages with install status
+sunnah --update       # Check all installed packages for updates
+sunnah --help         # Show help
+sunnah --version      # Show version
 ```
 
 ---
 
-## 🔧 Planned Features
+## 📺 Install Flow
 
-- 📦 **One package** — all major hadith collections in a single install
-- ⚡ **Tiny install** — data loads from CDN, not bundled into your app
-- 🌐 **Bilingual** — Arabic text + English translation for every collection
-- 🔍 **Unified search** — search across a single book or all books at once
-- 🖥️ **CLI** — read any hadith from your terminal
-- ⚛️ **React/Vue hooks** — auto-generated with one command
-- 📘 **TypeScript** — full type definitions
-- 🔧 **Zero dependencies** — no external packages required
-- 🌍 **Universal** — Node.js CJS, Node.js ESM, React, Vue, Vite, webpack
+When you press `enter`, each package installs with a live animated progress bar:
+
+```
+══════════════════════════════════════════════════════════════════════
+  Installing 2 packages…
+══════════════════════════════════════════════════════════════════════
+
+  [1/2]  Sahih al-Bukhari
+  npm install -g sahih-al-bukhari
+
+  ████████████████████░░░░░░░░░░░░░░░░░░░░  50%  Downloading tarball…
+
+  ✓ Sahih al-Bukhari installed
+  Usage: bukhari --help
+
+  [2/2]  Jami al-Tirmidhi
+  npm install -g jami-al-tirmidhi
+
+  ████████████████████████████████████████ 100%  Complete!
+
+  ✓ Jami al-Tirmidhi installed
+  Usage: tirmidhi --help
+
+══════════════════════════════════════════════════════════════════════
+  ✓ All done! 2 packages installed globally.
+
+  ▸ bukhari --help  ·  Sahih al-Bukhari
+  ▸ tirmidhi --help  ·  Jami al-Tirmidhi
+══════════════════════════════════════════════════════════════════════
+```
 
 ---
 
-## 🗺️ Roadmap
-
-- [x] **v1.0** — Sahih al-Bukhari released as standalone package
-- [ ] **v2.0** — Sahih Muslim added
-- [ ] **v2.5** — Abu Dawud, Tirmidhi, Nasa'i, Ibn Majah added (the Six Books)
-- [ ] **v3.0** — Muwatta Malik, Musnad Ahmad, Riyad as-Salihin added
-- [ ] **v4.0** — Cross-book search, shared narrator index, topic tagging
-- [ ] **v5.0** — Full sunnah.com-style grading and chain of narration data
-
----
-
-## 📦 Current Package
-
-If you need Sahih al-Bukhari right now, it is already available as a standalone package:
+## 🔍 --list
 
 ```bash
-npm install sahih-al-bukhari
-npm install -g sahih-al-bukhari
+sunnah --list
 ```
 
-[![sahih-al-bukhari on npm](https://img.shields.io/npm/v/sahih-al-bukhari?style=for-the-badge&logo=npm&label=sahih-al-bukhari)](https://www.npmjs.com/package/sahih-al-bukhari)
+```
+────────────────────────────────────────────────────────────
+  Available Sunnah Packages
+────────────────────────────────────────────────────────────
 
-Full documentation → [sahih-al-bukhari README](https://github.com/SENODROOM/sahih-al-bukhari)
+  Sahih al-Bukhari  ✓ installed
+  npm install -g sahih-al-bukhari
+  The most authentic collection of hadith...
+  Hadiths: 7,563   Author: Imam Muhammad ibn Ismail al-Bukhari
+
+  Sahih Muslim  ✗ not installed
+  npm install -g sahih-muslim
+  ...
+```
 
 ---
 
-## 🔔 Stay Updated
+## 🔄 --update
 
-Watch this repository to get notified when `sunnah` launches on npm.
+```bash
+sunnah --update
+```
 
-[![GitHub stars](https://img.shields.io/github/stars/SENODROOM/sunnah?style=for-the-badge&logo=github)](https://github.com/SENODROOM/sunnah)
-[![GitHub watchers](https://img.shields.io/github/watchers/SENODROOM/sunnah?style=for-the-badge&logo=github)](https://github.com/SENODROOM/sunnah)
+Checks every installed package against the latest version on npm:
+
+```
+────────────────────────────────────────────────────────────
+  Checking for updates…
+────────────────────────────────────────────────────────────
+
+  ✓ Sahih al-Bukhari  1.2.0 — up to date
+  ↑ Jami al-Tirmidhi  1.0.1 → 1.1.0  (run: npm install -g jami-al-tirmidhi)
+```
+
+---
+
+## 🗂️ After Installing
+
+Once you've installed individual packages via `sunnah`, each has its own powerful CLI:
+
+```bash
+# Read hadiths
+bukhari 1                        # First hadith
+muslim 2345 -b                   # Hadith #2345 in Arabic + English
+tirmidhi 23 34                   # 34th hadith of chapter 23
+dawud --random                   # Random hadith
+
+# Search
+bukhari --search "prayer"        # Top 5 results with highlighted matches
+tirmidhi --search "fasting" --all  # All results
+
+# Browse chapters
+muslim --chapter 5               # All hadiths in chapter 5
+
+# React hook
+bukhari --react                  # Generate useBukhari() hook in your project
+```
+
+---
+
+## 🔗 Individual Package Links
+
+Each book is also available as a standalone package with full Node.js, React, and Vue support:
+
+| Package            | npm                                                                                                                            | GitHub                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `sahih-al-bukhari` | [![npm](https://img.shields.io/npm/v/sahih-al-bukhari?style=flat-square&logo=npm)](https://npmjs.com/package/sahih-al-bukhari) | [SENODROOM/sahih-al-bukhari](https://github.com/SENODROOM/sahih-al-bukhari) |
+| `sahih-muslim`     | [![npm](https://img.shields.io/npm/v/sahih-muslim?style=flat-square&logo=npm)](https://npmjs.com/package/sahih-muslim)         | [SENODROOM/sahih-muslim](https://github.com/SENODROOM/sahih-muslim)         |
+| `sunan-abi-dawud`  | [![npm](https://img.shields.io/npm/v/sunan-abi-dawud?style=flat-square&logo=npm)](https://npmjs.com/package/sunan-abi-dawud)   | [SENODROOM/sunan-abi-dawud](https://github.com/SENODROOM/sunan-abi-dawud)   |
+| `jami-al-tirmidhi` | [![npm](https://img.shields.io/npm/v/jami-al-tirmidhi?style=flat-square&logo=npm)](https://npmjs.com/package/jami-al-tirmidhi) | [SENODROOM/jami-al-tirmidhi](https://github.com/SENODROOM/jami-al-tirmidhi) |
 
 ---
 
 ## 🤝 Contributing
 
-Want to help build this? Contributions are very welcome.
-
-- 📖 **Data** — Help format and verify hadith collections
-- 💻 **Code** — Build the package infrastructure
-- 📚 **Docs** — Write documentation and examples
-- 🐛 **Issues** — Report bugs or suggest features
+Contributions are welcome!
 
 1. Fork the repository
-2. Create a branch: `git checkout -b feature/muslim-collection`
-3. Commit: `git commit -m 'Add Sahih Muslim data'`
+2. Create a branch: `git checkout -b feature/my-feature`
+3. Commit: `git commit -m 'Add my feature'`
 4. Push and open a Pull Request
 
 ---
@@ -199,9 +245,10 @@ Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** — see
 
 **Made with ❤️ for the Muslim community | Seeking knowledge together**
 
-[🚀 Current Package](https://www.npmjs.com/package/sahih-al-bukhari) •
-[📋 Roadmap](#️-roadmap) •
-[🤝 Contribute](#-contributing) •
-[🔔 Watch for Updates](https://github.com/SENODROOM/sunnah)
+[![GitHub stars](https://img.shields.io/github/stars/SENODROOM/sunnah?style=for-the-badge&logo=github)](https://github.com/SENODROOM/sunnah)
+
+[📦 npm](https://npmjs.com/package/sunnah) •
+[🐛 Issues](https://github.com/SENODROOM/sunnah/issues) •
+[🤝 Contribute](https://github.com/SENODROOM/sunnah/pulls)
 
 </div>
