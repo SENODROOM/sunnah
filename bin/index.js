@@ -172,18 +172,30 @@ function animateInstall(pkgName) {
   });
 }
 
-// ── Check if a package is already installed globally ─────────────────────────
-function isInstalled(name) {
+// ── Check installed status ONCE at startup, cache forever ───────────────────
+// Calling npm on every render was freezing the terminal. We run one
+// 'npm list -g' at startup, parse the output, and never shell out again.
+function buildInstalledCache() {
+  const cache = new Map();
+  let out = "";
   try {
-    execSync(`${NPM} list -g ${name} --depth=0`, {
-      stdio: "ignore",
+    out = execSync(`${NPM} list -g --depth=0`, {
+      encoding: "utf8",
       shell: isWin,
+      timeout: 8000,
+      stdio: ["ignore", "pipe", "ignore"],
     });
-    return true;
-  } catch {
-    return false;
+  } catch (e) {
+    out = e.stdout || "";
   }
+  for (const p of PACKAGES) {
+    cache.set(p.name, out.includes(p.name));
+  }
+  return cache;
 }
+
+let installedCache = new Map();
+const isInstalled = (name) => installedCache.get(name) ?? false;
 
 // ── Render the interactive list ───────────────────────────────────────────────
 const DIV_W = () => Math.min(W() - 2, 70);
@@ -326,6 +338,7 @@ async function main() {
 
   // --list
   if (flags.some((f) => f === "--list" || f === "-l")) {
+    installedCache = buildInstalledCache();
     const div = gray("─".repeat(60));
     console.log("");
     console.log(div);
@@ -352,6 +365,13 @@ async function main() {
     console.error(red("\n  ✗ Interactive mode requires a TTY terminal.\n"));
     process.exit(1);
   }
+
+  // Build installed cache once — never call npm during rendering
+  process.stdout.write(
+    "\n  " + "\x1b[90m" + "Checking installed packages…" + "\x1b[0m",
+  );
+  installedCache = buildInstalledCache();
+  process.stdout.write("\r\x1b[K");
 
   readline.emitKeypressEvents(process.stdin);
   process.stdin.setRawMode(true);
@@ -454,6 +474,7 @@ async function main() {
         console.log("");
 
         await animateInstall(p.name);
+        installedCache.set(p.name, true); // update cache
 
         console.log(
           `  ${green("✓")} ${bold(green(p.label))} installed successfully`,
