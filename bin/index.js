@@ -41,6 +41,7 @@ const gray = (t) => clr(c.gray, t);
 const red = (t) => clr(c.red, t);
 const dim = (t) => clr(c.dim, t);
 const white = (t) => clr(c.white, t);
+const blue = (t) => clr(c.blue, t);
 
 // ── Available packages ────────────────────────────────────────────────────────
 const PACKAGES = [
@@ -78,26 +79,40 @@ const PACKAGES = [
   },
 ];
 
-// ── Terminal helpers ──────────────────────────────────────────────────────────
+// ── Terminal: use alternate screen buffer to avoid scroll issues ──────────────
 const W = () => process.stdout.columns || 80;
+const H = () => process.stdout.rows || 24;
 
-function clearLine() {
-  process.stdout.write("\r\x1b[K");
+function enterAltScreen() {
+  process.stdout.write("\x1b[?1049h");
 }
-
-function moveUp(n) {
-  if (n > 0) process.stdout.write(`\x1b[${n}A`);
+function leaveAltScreen() {
+  process.stdout.write("\x1b[?1049l");
 }
-
+function clearScreen() {
+  process.stdout.write("\x1b[2J\x1b[H");
+}
+function moveTo(row, col) {
+  process.stdout.write(`\x1b[${row};${col}H`);
+}
 function hideCursor() {
   process.stdout.write("\x1b[?25l");
 }
 function showCursor() {
   process.stdout.write("\x1b[?25h");
 }
+function clearToEOL() {
+  process.stdout.write("\x1b[K");
+}
+
+function writeLine(row, text) {
+  moveTo(row, 1);
+  clearToEOL();
+  process.stdout.write(text);
+}
 
 // ── Progress bar ──────────────────────────────────────────────────────────────
-function drawBar(label, percent, barWidth = 38) {
+function drawBar(label, percent, barWidth = 40) {
   const filled = Math.round((percent / 100) * barWidth);
   const empty = barWidth - filled;
   const bar =
@@ -106,43 +121,45 @@ function drawBar(label, percent, barWidth = 38) {
   return `  ${bar} ${pct}  ${dim(label)}`;
 }
 
-// ── Install a package with animated progress bar ──────────────────────────────
+// ── Install a package with animated single progress bar ───────────────────────
 function animateInstall(pkgName) {
   return new Promise((resolve) => {
     const stages = [
-      { label: "Resolving packages…", end: 12, ms: 90 },
-      { label: "Fetching metadata…", end: 28, ms: 70 },
-      { label: "Downloading tarball…", end: 72, ms: 25 },
-      { label: "Extracting files…", end: 88, ms: 55 },
-      { label: "Linking binaries…", end: 98, ms: 90 },
+      { label: "Resolving packages…", end: 12, ms: 80 },
+      { label: "Fetching metadata…", end: 30, ms: 60 },
+      { label: "Downloading tarball…", end: 75, ms: 22 },
+      { label: "Extracting files…", end: 90, ms: 50 },
+      { label: "Linking binaries…", end: 98, ms: 80 },
     ];
 
     let percent = 0;
     let stageIdx = 0;
     let npmDone = false;
 
-    process.stdout.write(drawBar(stages[0].label, 0) + "\n");
+    // Write bar ONCE — all updates overwrite this same line with \r
+    process.stdout.write(drawBar(stages[0].label, 0));
 
     const tick = () => {
       const stage = stages[stageIdx];
       if (!stage) return;
 
       const prevEnd = stageIdx > 0 ? stages[stageIdx - 1].end : 0;
-      const step = (stage.end - prevEnd) / 22;
+      const step = (stage.end - prevEnd) / 24;
       percent = Math.min(percent + step, stage.end);
 
-      process.stdout.write("\r\x1b[K");
-      process.stdout.write(drawBar(stage.label, percent));
+      // Overwrite the SAME line — no \n, just \r
+      process.stdout.write("\r\x1b[K" + drawBar(stage.label, percent));
 
       if (percent >= stage.end) {
         stageIdx++;
         if (stageIdx >= stages.length) {
+          // Spin until npm actually finishes
           const poll = setInterval(() => {
             if (npmDone) {
               clearInterval(poll);
-              process.stdout.write("\r\x1b[K");
-              process.stdout.write(drawBar("Complete!", 100));
-              process.stdout.write("\n");
+              process.stdout.write(
+                "\r\x1b[K" + drawBar("Complete!", 100) + "\n",
+              );
               resolve();
             }
           }, 80);
@@ -155,26 +172,21 @@ function animateInstall(pkgName) {
 
     setTimeout(tick, stages[0].ms);
 
-    // spawn npm.cmd on Windows, npm on Unix
+    // Actually run npm install -g
     const proc = spawn(NPM, ["install", "-g", pkgName], {
       stdio: ["ignore", "pipe", "pipe"],
       shell: isWin,
     });
-
     proc.on("error", () => {
-      // resolve anyway so the UI doesn't hang on spawn failure
       npmDone = true;
     });
-
     proc.on("close", () => {
       npmDone = true;
     });
   });
 }
 
-// ── Check installed status ONCE at startup, cache forever ───────────────────
-// Calling npm on every render was freezing the terminal. We run one
-// 'npm list -g' at startup, parse the output, and never shell out again.
+// ── Installed cache — built ONCE, never during render ────────────────────────
 function buildInstalledCache() {
   const cache = new Map();
   let out = "";
@@ -182,7 +194,7 @@ function buildInstalledCache() {
     out = execSync(`${NPM} list -g --depth=0`, {
       encoding: "utf8",
       shell: isWin,
-      timeout: 8000,
+      timeout: 10000,
       stdio: ["ignore", "pipe", "ignore"],
     });
   } catch (e) {
@@ -194,86 +206,207 @@ function buildInstalledCache() {
   return cache;
 }
 
+// Get latest version from npm registry (fast, single HTTP call)
+function getLatestVersion(name) {
+  try {
+    return execSync(`${NPM} show ${name} version`, {
+      encoding: "utf8",
+      shell: isWin,
+      timeout: 8000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+// Get currently installed version
+function getInstalledVersion(name) {
+  try {
+    const out = execSync(`${NPM} list -g ${name} --depth=0`, {
+      encoding: "utf8",
+      shell: isWin,
+      timeout: 8000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const match = out.match(new RegExp(name + "@([\\d.]+)"));
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
 let installedCache = new Map();
 const isInstalled = (name) => installedCache.get(name) ?? false;
 
-// ── Render the interactive list ───────────────────────────────────────────────
-const DIV_W = () => Math.min(W() - 2, 70);
+// ── Modes ─────────────────────────────────────────────────────────────────────
+const MODE = { LIST: "list", CONFIRM_UNINSTALL: "confirm_uninstall" };
 
-function renderList(selected, cursor) {
-  const div = gray("─".repeat(DIV_W()));
-  const div2 = gray("═".repeat(DIV_W()));
-  const lines = [];
+// ── Render: full-screen, uses alt buffer so no scroll ever ───────────────────
+function render(state) {
+  const { cursor, selected, mode, confirmTarget, statusMsg } = state;
+  const divW = Math.min(W() - 2, 72);
+  const div = gray("─".repeat(divW));
+  const div2 = gray("═".repeat(divW));
 
-  lines.push("");
-  lines.push(div2);
-  lines.push(
+  clearScreen();
+
+  let row = 1;
+
+  // Header
+  writeLine(row++, div2);
+  writeLine(
+    row++,
     bold(cyan("  📚 Sunnah Package Manager")) + gray("  v" + pkg.version),
   );
-  lines.push(
-    gray("  ↑↓ navigate  ") +
-      gray("space select  ") +
-      gray("a all  ") +
-      gray("enter install  ") +
-      gray("q quit"),
+  writeLine(
+    row++,
+    gray("  ↑↓") +
+      " navigate  " +
+      gray("space") +
+      " select  " +
+      gray("a") +
+      " all  " +
+      gray("i") +
+      " info  " +
+      gray("u") +
+      " uninstall  " +
+      gray("enter") +
+      " install  " +
+      gray("q") +
+      " quit",
   );
-  lines.push(div2);
-  lines.push("");
+  writeLine(row++, div2);
+  row++; // blank
 
+  // Package list
   PACKAGES.forEach((p, i) => {
     const isCursor = i === cursor;
-    const isSelected = selected.has(i);
-    const installed = isInstalled(p.name);
+    const isSel = selected.has(i);
+    const inst = isInstalled(p.name);
 
-    const checkbox = isSelected ? green("[✓]") : gray("[ ]");
+    const checkbox = isSel ? green("[✓]") : gray("[ ]");
     const arrow = isCursor ? cyan("▶") : " ";
     const label = isCursor
       ? bold(white(p.label))
-      : isSelected
+      : isSel
         ? green(p.label)
         : white(p.label);
-    const badge = installed ? dim(gray("  (installed)")) : "";
+    const badge = inst
+      ? dim(green("  ● installed"))
+      : dim(gray("  ○ not installed"));
 
-    lines.push(`  ${arrow} ${checkbox}  ${label}${badge}`);
+    writeLine(row++, `  ${arrow} ${checkbox}  ${label}${badge}`);
 
     if (isCursor) {
-      lines.push(`         ${dim(p.author)}`);
-      lines.push(`         ${gray(p.desc)}`);
-      lines.push(
-        `         ${gray("Hadiths: ")}${yellow(p.hadiths)}   ${gray("CLI: ")}${cyan(p.cmd + " --help")}`,
+      writeLine(row++, `         ${dim(p.author)}`);
+      writeLine(row++, `         ${gray(p.desc)}`);
+      writeLine(
+        row++,
+        `         ${gray("Hadiths: ")}${yellow(p.hadiths)}` +
+          `   ${gray("CLI: ")}${cyan(p.cmd + " --help")}` +
+          (inst ? `   ${gray("run: ")}${cyan(p.cmd + " 1")}` : ""),
       );
-      lines.push("");
+      row++; // blank after expanded
     }
   });
 
-  lines.push("");
-  lines.push(div);
+  row++; // blank
+  writeLine(row++, div);
 
-  const count = selected.size;
-  if (count > 0) {
+  // Status / selection footer
+  if (statusMsg) {
+    writeLine(row++, `  ${yellow("⚠")}  ${yellow(statusMsg)}`);
+  } else if (selected.size > 0) {
     const names = [...selected].map((i) => cyan(PACKAGES[i].name)).join(", ");
-    lines.push(`  ${green("●")} ${bold(String(count))} selected: ${names}`);
+    writeLine(
+      row++,
+      `  ${green("●")} ${bold(String(selected.size))} selected: ${names}`,
+    );
+    writeLine(
+      row++,
+      `  ${dim("Press enter to install, u to uninstall selected")}`,
+    );
   } else {
-    lines.push(
+    writeLine(
+      row++,
       `  ${gray("Nothing selected — press space to select a package")}`,
     );
   }
-  lines.push(div);
-  lines.push("");
 
-  return lines;
-}
+  writeLine(row++, div);
 
-function printLines(lines) {
-  process.stdout.write(lines.join("\n") + "\n");
-}
-
-function eraseLines(n) {
-  for (let i = 0; i < n; i++) {
-    clearLine();
-    if (i < n - 1) moveUp(1);
+  // Confirm uninstall overlay
+  if (mode === MODE.CONFIRM_UNINSTALL && confirmTarget !== null) {
+    const p = PACKAGES[confirmTarget];
+    row++;
+    writeLine(
+      row++,
+      `  ${red("⚠  Uninstall ")}${bold(white(p.label))}${red("?")}`,
+    );
+    writeLine(
+      row++,
+      `  ${green("y")} ${gray("confirm")}   ${red("n")} ${gray("cancel")}`,
+    );
   }
-  clearLine();
+}
+
+// ── Non-interactive: --list ───────────────────────────────────────────────────
+function cmdList() {
+  installedCache = buildInstalledCache();
+  const div = gray("─".repeat(60));
+  console.log("");
+  console.log(div);
+  console.log(bold(cyan("  Available Sunnah Packages")));
+  console.log(div);
+  PACKAGES.forEach((p) => {
+    const inst = isInstalled(p.name)
+      ? green("  ✓ installed")
+      : red("  ✗ not installed");
+    console.log("");
+    console.log(`  ${bold(white(p.label))}${inst}`);
+    console.log(`  ${cyan("npm install -g " + p.name)}`);
+    console.log(`  ${dim(p.desc)}`);
+    console.log(
+      `  ${gray("Hadiths: ")}${yellow(p.hadiths)}   ${gray("Author: ")}${magenta(p.author)}`,
+    );
+  });
+  console.log("");
+  console.log(div);
+  console.log("");
+}
+
+// ── Non-interactive: --update ─────────────────────────────────────────────────
+function cmdUpdate() {
+  installedCache = buildInstalledCache();
+  const installed = PACKAGES.filter((p) => isInstalled(p.name));
+  if (!installed.length) {
+    console.log("\n  " + yellow("No sunnah packages installed.\n"));
+    return;
+  }
+  const div = gray("─".repeat(60));
+  console.log("\n" + div);
+  console.log(bold(cyan("  Checking for updates…")));
+  console.log(div + "\n");
+
+  for (const p of installed) {
+    const current = getInstalledVersion(p.name);
+    const latest = getLatestVersion(p.name);
+    if (!current || !latest) {
+      console.log(`  ${yellow("?")} ${p.label}  ${gray("(could not check)")}`);
+      continue;
+    }
+    if (current === latest) {
+      console.log(
+        `  ${green("✓")} ${bold(p.label)}  ${gray(current + " — up to date")}`,
+      );
+    } else {
+      console.log(
+        `  ${yellow("↑")} ${bold(p.label)}  ${gray(current)} → ${green(latest)}  ${dim("(run: npm install -g " + p.name + ")")}`,
+      );
+    }
+  }
+  console.log("\n" + div + "\n");
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -283,80 +416,69 @@ async function main() {
 
   // --version
   if (flags.some((f) => f === "-v" || f === "--version")) {
-    console.log("");
-    console.log("  " + bold(cyan("sunnah")) + gray(" v" + pkg.version));
+    console.log("\n  " + bold(cyan("sunnah")) + gray(" v" + pkg.version));
     console.log(
-      "  " + gray("Available packages: ") + yellow(String(PACKAGES.length)),
+      "  " + gray("Packages: ") + yellow(String(PACKAGES.length)) + "\n",
     );
-    console.log("");
     process.exit(0);
   }
 
   // --help
   if (flags.some((f) => f === "-h" || f === "--help")) {
     const div = gray("─".repeat(60));
-    console.log("");
-    console.log(div);
+    console.log("\n" + div);
     console.log(
       bold(cyan("  Sunnah Package Manager")) + gray("  v" + pkg.version),
     );
-    console.log(div);
-    console.log("");
+    console.log(div + "\n");
     console.log("  " + bold("Usage:"));
     console.log(
-      "    " +
-        cyan("sunnah") +
-        gray("               Open interactive installer"),
+      "    " + cyan("sunnah") + gray("                Open interactive UI"),
     );
     console.log(
       "    " +
         cyan("sunnah") +
         green(" --list") +
-        gray("       List all available packages"),
+        gray("        List all packages + install status"),
     );
     console.log(
-      "    " + cyan("sunnah") + green(" -v") + gray("           Show version"),
+      "    " +
+        cyan("sunnah") +
+        green(" --update") +
+        gray("      Check all installed packages for updates"),
+    );
+    console.log(
+      "    " + cyan("sunnah") + green(" -v") + gray("            Show version"),
     );
     console.log(
       "    " +
         cyan("sunnah") +
         green(" -h") +
-        gray("           Show this help"),
+        gray("            Show this help"),
     );
-    console.log("");
-    console.log("  " + bold("Controls (interactive mode):"));
-    console.log("    " + green("↑ ↓") + gray("     Navigate packages"));
-    console.log("    " + green("space") + gray("   Toggle selection"));
-    console.log("    " + green("a") + gray("       Toggle all / deselect all"));
-    console.log("    " + green("enter") + gray("   Install selected packages"));
-    console.log("    " + green("q") + gray("       Quit"));
-    console.log("");
-    console.log(div);
-    console.log("");
+    console.log("\n  " + bold("Interactive controls:"));
+    console.log("    " + green("↑ ↓") + gray("      Navigate"));
+    console.log("    " + green("space") + gray("    Toggle select"));
+    console.log(
+      "    " + green("a") + gray("        Select all / deselect all"),
+    );
+    console.log("    " + green("i") + gray("        Show package info"));
+    console.log("    " + green("u") + gray("        Uninstall selected"));
+    console.log("    " + green("enter") + gray("    Install selected"));
+    console.log("    " + green("q") + gray("        Quit"));
+    console.log("\n" + div + "\n");
     process.exit(0);
   }
 
   // --list
   if (flags.some((f) => f === "--list" || f === "-l")) {
-    installedCache = buildInstalledCache();
-    const div = gray("─".repeat(60));
-    console.log("");
-    console.log(div);
-    console.log(bold(cyan("  Available Sunnah Packages")));
-    console.log(div);
-    PACKAGES.forEach((p) => {
-      const inst = isInstalled(p.name) ? green("  ✓ installed") : "";
-      console.log("");
-      console.log(`  ${bold(white(p.label))}${inst}`);
-      console.log(`  ${cyan("npm install -g " + p.name)}`);
-      console.log(`  ${dim(p.desc)}`);
-      console.log(
-        `  ${gray("Hadiths: ")}${yellow(p.hadiths)}   ${gray("Author: ")}${magenta(p.author)}`,
-      );
-    });
-    console.log("");
-    console.log(div);
-    console.log("");
+    cmdList();
+    process.exit(0);
+  }
+
+  // --update
+  if (flags.some((f) => f === "--update")) {
+    cmdUpdate();
     process.exit(0);
   }
 
@@ -366,32 +488,40 @@ async function main() {
     process.exit(1);
   }
 
-  // Build installed cache once — never call npm during rendering
-  process.stdout.write(
-    "\n  " + "\x1b[90m" + "Checking installed packages…" + "\x1b[0m",
-  );
+  // Build cache before entering alt screen
+  process.stdout.write("\n  " + gray("Checking installed packages…"));
   installedCache = buildInstalledCache();
   process.stdout.write("\r\x1b[K");
 
-  readline.emitKeypressEvents(process.stdin);
-  process.stdin.setRawMode(true);
+  // Enter alternate screen buffer — this completely prevents scroll issues
+  enterAltScreen();
   hideCursor();
 
-  let cursor = 0;
-  let selected = new Set();
-  let prevCount = 0;
-
-  const draw = () => {
-    const lines = renderList(selected, cursor);
-    if (prevCount > 0) eraseLines(prevCount);
-    printLines(lines);
-    prevCount = lines.length;
+  const state = {
+    cursor: 0,
+    selected: new Set(),
+    mode: MODE.LIST,
+    confirmTarget: null,
+    statusMsg: "",
   };
 
-  draw();
+  let statusTimer = null;
+
+  function setStatus(msg, ms = 2000) {
+    state.statusMsg = msg;
+    render(state);
+    if (statusTimer) clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => {
+      state.statusMsg = "";
+      render(state);
+    }, ms);
+  }
+
+  render(state);
 
   const cleanup = () => {
     showCursor();
+    leaveAltScreen();
     try {
       process.stdin.setRawMode(false);
     } catch {}
@@ -400,63 +530,151 @@ async function main() {
 
   process.on("SIGINT", () => {
     cleanup();
-    console.log("");
     process.exit(0);
   });
+
+  readline.emitKeypressEvents(process.stdin);
+  process.stdin.setRawMode(true);
 
   process.stdin.on("keypress", async (str, key) => {
     if (!key) return;
 
+    // ── Confirm uninstall mode ──────────────────────────────────────────────
+    if (state.mode === MODE.CONFIRM_UNINSTALL) {
+      if (str === "y" || str === "Y") {
+        const p = PACKAGES[state.confirmTarget];
+        state.mode = MODE.LIST;
+        state.confirmTarget = null;
+
+        cleanup();
+        console.log(
+          "\n  " +
+            yellow("Uninstalling ") +
+            bold(white(p.label)) +
+            yellow("…\n"),
+        );
+
+        try {
+          execSync(`${NPM} uninstall -g ${p.name}`, {
+            stdio: "inherit",
+            shell: isWin,
+          });
+          installedCache.set(p.name, false);
+          state.selected.delete(PACKAGES.indexOf(p));
+          console.log(
+            "\n  " +
+              green("✓ ") +
+              bold(green(p.label)) +
+              green(" uninstalled.\n"),
+          );
+        } catch {
+          console.log("\n  " + red("✗ Failed to uninstall " + p.label + "\n"));
+        }
+
+        await sleep(1200);
+
+        // Re-enter interactive UI
+        enterAltScreen();
+        hideCursor();
+        readline.emitKeypressEvents(process.stdin);
+        process.stdin.setRawMode(true);
+        render(state);
+      } else {
+        state.mode = MODE.LIST;
+        state.confirmTarget = null;
+        render(state);
+      }
+      return;
+    }
+
+    // ── Normal list mode ────────────────────────────────────────────────────
+
     // Quit
     if (key.name === "q" || (key.ctrl && key.name === "c")) {
       cleanup();
-      if (prevCount > 0) eraseLines(prevCount);
       console.log("\n  " + gray("Goodbye.\n"));
       process.exit(0);
     }
 
     // Navigate
     if (key.name === "up") {
-      cursor = (cursor - 1 + PACKAGES.length) % PACKAGES.length;
-      draw();
+      state.cursor = (state.cursor - 1 + PACKAGES.length) % PACKAGES.length;
+      render(state);
       return;
     }
     if (key.name === "down") {
-      cursor = (cursor + 1) % PACKAGES.length;
-      draw();
+      state.cursor = (state.cursor + 1) % PACKAGES.length;
+      render(state);
       return;
     }
 
-    // Toggle selection
+    // Toggle select
     if (str === " ") {
-      if (selected.has(cursor)) selected.delete(cursor);
-      else selected.add(cursor);
-      draw();
+      if (state.selected.has(state.cursor)) state.selected.delete(state.cursor);
+      else state.selected.add(state.cursor);
+      render(state);
       return;
     }
 
-    // Toggle all
+    // Select all / deselect all
     if (str === "a" || str === "A") {
-      if (selected.size === PACKAGES.length) selected.clear();
-      else PACKAGES.forEach((_, i) => selected.add(i));
-      draw();
+      if (state.selected.size === PACKAGES.length) state.selected.clear();
+      else PACKAGES.forEach((_, i) => state.selected.add(i));
+      render(state);
+      return;
+    }
+
+    // Info
+    if (str === "i" || str === "I") {
+      const p = PACKAGES[state.cursor];
+      const inst = isInstalled(p.name);
+      const version = inst ? getInstalledVersion(p.name) : null;
+      const msg = `${p.label} | ${p.hadiths} hadiths | ${inst ? "v" + version + " installed" : "not installed"}`;
+      setStatus(msg, 3000);
+      return;
+    }
+
+    // Uninstall
+    if (str === "u" || str === "U") {
+      const targets =
+        state.selected.size > 0 ? [...state.selected] : [state.cursor];
+
+      // Only uninstall packages that are actually installed
+      const toRemove = targets.filter((i) => isInstalled(PACKAGES[i].name));
+      if (!toRemove.length) {
+        setStatus("No installed packages selected to uninstall.");
+        return;
+      }
+
+      // Confirm one by one
+      state.mode = MODE.CONFIRM_UNINSTALL;
+      state.confirmTarget = toRemove[0];
+      render(state);
       return;
     }
 
     // Install
     if (key.name === "return") {
-      if (selected.size === 0) return;
+      const targets =
+        state.selected.size > 0
+          ? [...state.selected].map((i) => PACKAGES[i])
+          : [PACKAGES[state.cursor]];
+
+      const toInstall = targets.filter((p) => !isInstalled(p.name));
+
+      if (!toInstall.length) {
+        setStatus("All selected packages are already installed.");
+        return;
+      }
 
       cleanup();
-      if (prevCount > 0) eraseLines(prevCount);
 
-      const toInstall = [...selected].map((i) => PACKAGES[i]);
       const total = toInstall.length;
-      const div = gray("─".repeat(DIV_W()));
-      const div2 = gray("═".repeat(DIV_W()));
+      const divW = Math.min(W() - 2, 72);
+      const div = gray("─".repeat(divW));
+      const div2 = gray("═".repeat(divW));
 
-      console.log("");
-      console.log(div2);
+      console.log("\n" + div2);
       console.log(
         bold(cyan("  Installing ")) +
           bold(yellow(String(total))) +
@@ -466,37 +684,45 @@ async function main() {
 
       for (let i = 0; i < toInstall.length; i++) {
         const p = toInstall[i];
-        console.log("");
         console.log(
-          `  ${cyan("[" + (i + 1) + "/" + total + "]")}  ${bold(white(p.label))}`,
+          "\n  " +
+            cyan("[" + (i + 1) + "/" + total + "]") +
+            "  " +
+            bold(white(p.label)),
         );
-        console.log(`  ${dim("npm install -g " + p.name)}`);
-        console.log("");
+        console.log("  " + dim("npm install -g " + p.name) + "\n");
 
         await animateInstall(p.name);
-        installedCache.set(p.name, true); // update cache
+        installedCache.set(p.name, true);
 
         console.log(
-          `  ${green("✓")} ${bold(green(p.label))} installed successfully`,
+          "  " + green("✓") + " " + bold(green(p.label)) + " installed",
         );
-        console.log(`  ${gray("Usage: ")}${cyan(p.cmd + " --help")}`);
+        console.log("  " + gray("Usage: ") + cyan(p.cmd + " --help"));
       }
 
-      console.log("");
-      console.log(div2);
+      console.log("\n" + div2);
       console.log(
-        `  ${green("✓")} All done! ` +
+        "  " +
+          green("✓ All done! ") +
           bold(yellow(String(total))) +
-          ` package${total > 1 ? "s" : ""} installed globally.`,
+          " package" +
+          (total > 1 ? "s" : "") +
+          " installed.",
       );
       console.log("");
-      toInstall.forEach((p) => {
+      toInstall.forEach((p) =>
         console.log(
-          `  ${cyan("▸")} ${bold(p.cmd)} ${gray("--help")}  ${dim("·")}  ${dim(p.label)}`,
-        );
-      });
-      console.log(div2);
-      console.log("");
+          "  " +
+            cyan("▸") +
+            " " +
+            bold(p.cmd) +
+            gray(" --help") +
+            "  " +
+            dim(p.label),
+        ),
+      );
+      console.log(div2 + "\n");
 
       showCursor();
       process.exit(0);
@@ -504,8 +730,13 @@ async function main() {
   });
 }
 
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 main().catch((err) => {
   showCursor();
+  leaveAltScreen();
   console.error(red("\n  ✗ " + err.message + "\n"));
   process.exit(1);
 });
