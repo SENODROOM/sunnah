@@ -38,6 +38,7 @@ That's it. A beautiful full-screen terminal UI opens, showing every available ha
 | **Sahih Muslim**     | [`sahih-muslim`](https://npmjs.com/package/sahih-muslim)         | 7,470   | Imam Muslim      | `muslim`    |
 | **Sunan Abi Dawud**  | [`sunan-abi-dawud`](https://npmjs.com/package/sunan-abi-dawud)   | 5,274   | Imam Abu Dawud   | `dawud`     |
 | **Jami al-Tirmidhi** | [`jami-al-tirmidhi`](https://npmjs.com/package/jami-al-tirmidhi) | 3,956   | Imam al-Tirmidhi | `tirmidhi`  |
+| **Sunan Ibn Majah**  | [`sunan-ibn-majah`](https://npmjs.com/package/sunan-ibn-majah)   | 4,341   | Imam Ibn Majah   | `ibnmajah`  |
 
 ---
 
@@ -73,6 +74,7 @@ Opens a full-screen interactive installer:
     [ ]  Sahih Muslim  ○ not installed
     [ ]  Sunan Abi Dawud  ○ not installed
     [ ]  Jami al-Tirmidhi  ○ not installed
+    [ ]  Sunan Ibn Majah  ○ not installed
 
 ──────────────────────────────────────────────────────────────────────
   ● 1 selected: sahih-al-bukhari
@@ -102,83 +104,6 @@ sunnah --version      # Show version
 
 ---
 
-## 📺 Install Flow
-
-When you press `enter`, each package installs with a live animated progress bar:
-
-```
-══════════════════════════════════════════════════════════════════════
-  Installing 2 packages…
-══════════════════════════════════════════════════════════════════════
-
-  [1/2]  Sahih al-Bukhari
-  npm install -g sahih-al-bukhari
-
-  ████████████████████░░░░░░░░░░░░░░░░░░░░  50%  Downloading tarball…
-
-  ✓ Sahih al-Bukhari installed
-  Usage: bukhari --help
-
-  [2/2]  Jami al-Tirmidhi
-  npm install -g jami-al-tirmidhi
-
-  ████████████████████████████████████████ 100%  Complete!
-
-  ✓ Jami al-Tirmidhi installed
-  Usage: tirmidhi --help
-
-══════════════════════════════════════════════════════════════════════
-  ✓ All done! 2 packages installed globally.
-
-  ▸ bukhari --help  ·  Sahih al-Bukhari
-  ▸ tirmidhi --help  ·  Jami al-Tirmidhi
-══════════════════════════════════════════════════════════════════════
-```
-
----
-
-## 🔍 --list
-
-```bash
-sunnah --list
-```
-
-```
-────────────────────────────────────────────────────────────
-  Available Sunnah Packages
-────────────────────────────────────────────────────────────
-
-  Sahih al-Bukhari  ✓ installed
-  npm install -g sahih-al-bukhari
-  The most authentic collection of hadith...
-  Hadiths: 7,563   Author: Imam Muhammad ibn Ismail al-Bukhari
-
-  Sahih Muslim  ✗ not installed
-  npm install -g sahih-muslim
-  ...
-```
-
----
-
-## 🔄 --update
-
-```bash
-sunnah --update
-```
-
-Checks every installed package against the latest version on npm:
-
-```
-────────────────────────────────────────────────────────────
-  Checking for updates…
-────────────────────────────────────────────────────────────
-
-  ✓ Sahih al-Bukhari  1.2.0 — up to date
-  ↑ Jami al-Tirmidhi  1.0.1 → 1.1.0  (run: npm install -g jami-al-tirmidhi)
-```
-
----
-
 ## 🗂️ After Installing
 
 Once you've installed individual packages via `sunnah`, each has its own powerful CLI:
@@ -189,6 +114,7 @@ bukhari 1                        # First hadith
 muslim 2345 -b                   # Hadith #2345 in Arabic + English
 tirmidhi 23 34                   # 34th hadith of chapter 23
 dawud --random                   # Random hadith
+ibnmajah 500 -b                  # Hadith #500 in Arabic + English
 
 # Search
 bukhari --search "prayer"        # Top 5 results with highlighted matches
@@ -213,17 +139,235 @@ Each book is also available as a standalone package with full Node.js, React, an
 | `sahih-muslim`     | [![npm](https://img.shields.io/npm/v/sahih-muslim?style=flat-square&logo=npm)](https://npmjs.com/package/sahih-muslim)         | [SENODROOM/sahih-muslim](https://github.com/SENODROOM/sahih-muslim)         |
 | `sunan-abi-dawud`  | [![npm](https://img.shields.io/npm/v/sunan-abi-dawud?style=flat-square&logo=npm)](https://npmjs.com/package/sunan-abi-dawud)   | [SENODROOM/sunan-abi-dawud](https://github.com/SENODROOM/sunan-abi-dawud)   |
 | `jami-al-tirmidhi` | [![npm](https://img.shields.io/npm/v/jami-al-tirmidhi?style=flat-square&logo=npm)](https://npmjs.com/package/jami-al-tirmidhi) | [SENODROOM/jami-al-tirmidhi](https://github.com/SENODROOM/jami-al-tirmidhi) |
+| `sunan-ibn-majah`  | [![npm](https://img.shields.io/npm/v/sunan-ibn-majah?style=flat-square&logo=npm)](https://npmjs.com/package/sunan-ibn-majah)   | [SENODROOM/sunan-ibn-majah](https://github.com/SENODROOM/sunan-ibn-majah)   |
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome!
+### Overview
 
-1. Fork the repository
-2. Create a branch: `git checkout -b feature/my-feature`
-3. Commit: `git commit -m 'Add my feature'`
-4. Push and open a Pull Request
+This is a **monorepo** managed with **git subtree**. The root repo (`SENODROOM/sunnah`) contains the `sunnah` CLI package manager. Each hadith book lives in `books/<book-name>/` and is simultaneously maintained as its own standalone GitHub repo, linked here as a subtree.
+
+```
+sunnah/                        ← root repo: the CLI manager
+├── bin/index.js               ← sunnah interactive UI
+├── books/
+│   ├── sahih-al-bukhari/      ← subtree: SENODROOM/sahih-al-bukhari
+│   ├── sahih-muslim/          ← subtree: SENODROOM/sahih-muslim
+│   ├── sunan-abi-dawud/       ← subtree: SENODROOM/sunan-abi-dawud
+│   ├── jami-al-tirmidhi/      ← subtree: SENODROOM/jami-al-tirmidhi
+│   └── sunan-ibn-majah/       ← subtree: SENODROOM/sunan-ibn-majah
+└── package.json
+```
+
+---
+
+### 📥 Cloning the Repo
+
+```bash
+git clone https://github.com/SENODROOM/sunnah.git
+cd sunnah
+npm install
+```
+
+---
+
+### 🌿 Working with Git Subtrees
+
+#### What is a subtree?
+
+Unlike submodules, git subtrees embed the full history of a child repo directly inside the parent. You can push and pull changes between the root monorepo and each book's standalone repo without any special git setup for contributors — it's all plain git.
+
+#### Adding a new book as a subtree
+
+When a new hadith book package has been published as its own GitHub repo (e.g. `SENODROOM/sunan-ibn-majah`), add it to the monorepo like this:
+
+```bash
+# Step 1 — register the remote (one-time)
+git remote add sunan-ibn-majah https://github.com/SENODROOM/sunan-ibn-majah.git
+
+# Step 2 — add the subtree at books/sunan-ibn-majah/
+git subtree add --prefix=books/sunan-ibn-majah sunan-ibn-majah main --squash
+
+# Step 3 — commit message will be auto-generated; push to the monorepo
+git push origin main
+```
+
+#### Pulling updates from a book repo into the monorepo
+
+If changes have been made directly in the standalone book repo (e.g. a data fix in `SENODROOM/sahih-al-bukhari`), pull them in:
+
+```bash
+git subtree pull --prefix=books/sahih-al-bukhari sahih-al-bukhari main --squash
+```
+
+#### Pushing monorepo changes back to a book repo
+
+If you edited a book's files inside the monorepo and want those changes reflected in the standalone repo:
+
+```bash
+git subtree push --prefix=books/sahih-al-bukhari sahih-al-bukhari main
+```
+
+#### Remotes reference table
+
+| Book folder              | Remote name        | Repo URL                                          |
+| ------------------------ | ------------------ | ------------------------------------------------- |
+| `books/sahih-al-bukhari` | `sahih-al-bukhari` | https://github.com/SENODROOM/sahih-al-bukhari.git |
+| `books/sahih-muslim`     | `sahih-muslim`     | https://github.com/SENODROOM/sahih-muslim.git     |
+| `books/sunan-abi-dawud`  | `sunan-abi-dawud`  | https://github.com/SENODROOM/sunan-abi-dawud.git  |
+| `books/jami-al-tirmidhi` | `jami-al-tirmidhi` | https://github.com/SENODROOM/jami-al-tirmidhi.git |
+| `books/sunan-ibn-majah`  | `sunan-ibn-majah`  | https://github.com/SENODROOM/sunan-ibn-majah.git  |
+
+---
+
+### ✏️ Making Changes to the Root CLI (`bin/index.js` or `package.json`)
+
+These files belong only to the root monorepo — changes here do **not** need to be pushed to any subtree remote.
+
+```bash
+# Edit bin/index.js or package.json as usual, then:
+git add .
+git commit -m "feat: add sunan-ibn-majah to PACKAGES list"
+git push origin main
+```
+
+---
+
+### ➕ Adding a New Book Package (Pull Request guide)
+
+To contribute a new hadith book to the ecosystem, follow these steps:
+
+**1. Create the book repo**
+
+Create a new GitHub repo at `https://github.com/<your-username>/<book-slug>` following the existing book structure:
+
+```
+<book-slug>/
+├── bin/
+│   ├── index.js          ← CLI entry point
+│   └── <slug>.json       ← full hadith data (Arabic + English)
+├── chapters/
+│   ├── meta.json         ← chapter list
+│   ├── 1.json            ← hadiths per chapter
+│   └── ...
+├── build.mjs
+├── index.js              ← ESM browser entry
+├── index.cjs             ← CommonJS entry
+├── index.node.js         ← Node.js entry
+├── index.d.ts            ← TypeScript definitions
+├── package.json
+├── README.md
+├── LICENSE               ← AGPL-3.0
+├── .gitignore
+└── .npmignore
+```
+
+The `package.json` must follow this shape exactly:
+
+```json
+{
+  "name": "<book-slug>",
+  "version": "1.0.0",
+  "description": "Complete <Book Name> hadith collection. Tiny package (~3KB), data from CDN. CLI + Node.js + React/Vue/Vite.",
+  "type": "module",
+  "main": "./index.cjs",
+  "module": "./index.browser.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "browser": "./index.browser.js",
+      "require": "./index.cjs",
+      "import": "./index.node.js"
+    },
+    "./chapters/*": "./chapters/*"
+  },
+  "bin": { "<cmd>": "./bin/index.js" },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
+  },
+  "keywords": [
+    "islam",
+    "hadith",
+    "<slug>",
+    "sunnah",
+    "json",
+    "arabic",
+    "english",
+    "react",
+    "hook"
+  ],
+  "author": "muhammadsaadamin",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SENODROOM/<book-slug>.git"
+  },
+  "files": [
+    "index.js",
+    "index.browser.js",
+    "index.cjs",
+    "index.node.js",
+    "index.d.ts",
+    "bin/index.js",
+    "bin/<slug>.json",
+    "chapters/"
+  ],
+  "engines": { "node": ">=14.0.0" }
+}
+```
+
+**2. Publish the npm package**
+
+```bash
+cd <book-slug>
+npm publish --access public
+```
+
+**3. Fork this monorepo and add the subtree**
+
+```bash
+git clone https://github.com/<your-username>/sunnah.git
+cd sunnah
+git remote add <book-slug> https://github.com/<your-username>/<book-slug>.git
+git subtree add --prefix=books/<book-slug> <book-slug> main --squash
+```
+
+**4. Register the new package in `bin/index.js`**
+
+Add an entry to the `PACKAGES` array in `bin/index.js`:
+
+```js
+{
+  name: "<book-slug>",
+  label: "<Book Name>",
+  author: "Imam <Author Name>",
+  desc:   "<One-sentence description of the collection.>",
+  hadiths: "<count>",
+  cmd:  "<cmd>",
+  hook: "use<Hook>",
+},
+```
+
+**5. Open a Pull Request**
+
+Push your branch and open a PR to `SENODROOM/sunnah` with:
+
+- Title: `feat: add <book-slug> package`
+- Description: Include the npm package link, hadith count, and a short description of the book's authenticity/provenance
+
+---
+
+### 🐛 Reporting Issues
+
+Use the [Issues tab](https://github.com/SENODROOM/sunnah/issues) to:
+
+- Request a new hadith collection to be added
+- Report data errors in any book
+- Suggest CLI improvements
 
 ---
 
