@@ -1,0 +1,20 @@
+{
+  "name": "sunnah",
+  "version": "1.0.0",
+  "description": "One package. Every major Hadith collection. CLI, Node.js, React, Vue — all supported",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SENODROOM/sunnah.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SENODROOM/sunnah/issues"
+  },
+  "homepage": "https://github.com/SENODROOM/sunnah#readme"
+}
