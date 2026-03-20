@@ -1,18 +1,7 @@
-// CommonJS entry — require('sahih-muslim')
-// Works in: Node.js (Express, serverless, etc.)
-'use strict';
-
-const fs   = require('fs');
-const path = require('path');
-
-const muslimData = JSON.parse(
-  fs.readFileSync(path.join(__dirname, 'bin', 'muslim.json'), 'utf8')
-);
-
-class Muslim {
+// ESM browser-safe entry (class only — no data)
+export class Muslim {
   constructor(muslimData) {
     this._hadiths = muslimData.hadiths;
-
     return new Proxy(this._hadiths, {
       get: (target, prop) => {
         if (!isNaN(prop))   return target[parseInt(prop)];
@@ -22,10 +11,14 @@ class Muslim {
           case 'chapters':     return muslimData.chapters;
           case 'get':          return (id) => this._hadiths.find(h => h.id === id);
           case 'getByChapter': return (id) => this._hadiths.filter(h => h.chapterId === id);
-          case 'search':       return (q)  => this._hadiths.filter(h =>
-            h.english?.text?.toLowerCase().includes(q.toLowerCase()) ||
-            h.english?.narrator?.toLowerCase().includes(q.toLowerCase())
-          );
+          case 'search':       return (q, limit = 0) => {
+            const ql = q.toLowerCase();
+            const r  = this._hadiths.filter(h =>
+              h.english?.text?.toLowerCase().includes(ql) ||
+              h.english?.narrator?.toLowerCase().includes(ql)
+            );
+            return limit > 0 ? r.slice(0, limit) : r;
+          };
           case 'getRandom': return () => this._hadiths[Math.floor(Math.random() * this._hadiths.length)];
           case 'length':    return target.length;
           default:          return target[prop];
@@ -39,8 +32,4 @@ class Muslim {
     });
   }
 }
-
-const muslim = new Muslim(muslimData);
-module.exports = muslim;
-module.exports.Muslim  = Muslim;
-module.exports.default = muslim;
+export default Muslim;
