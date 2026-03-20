@@ -1,5 +1,42 @@
-build.mjs
-build-browser.mjs
-package-lock.json
+# .npmignore — excludes from `npm publish`
+# Note: package.json "files" whitelist takes priority.
+# This file is a safety net for anything that slips through.
+
+# ── Python package ───────────────────────────────────────────────────────────
+python/
+*.py
+pyproject.toml
+MANIFEST.in
+setup.py
+setup.cfg
+
+# ── Python build artefacts ───────────────────────────────────────────────────
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# ── Data — raw json excluded, only .gz ships ─────────────────────────────────
+data/bukhari.json
+data/chapters/
+
+# ── Dev / CI ──────────────────────────────────────────────────────────────────
 .git/
+.github/
 .gitignore
+*.log
+.DS_Store
+.env
+
+# ── Build inputs — not needed by consumers ───────────────────────────────────
+scripts/
+package-lock.json
+CHANGELOG.md
+CONTRIBUTING.md
+docs/
+tests/
+examples/flask/

@@ -1,0 +1,33 @@
+# MANIFEST.in — controls what goes into the Python sdist
+
+# ── Shared data folder ───────────────────────────────────────────────────────
+include data/bukhari.json.gz
+# data/chapters/ is generated — not needed in sdist
+# data/bukhari.json (raw) excluded — ship gz only
+exclude data/bukhari.json
+prune data/chapters
+
+# ── Python source ────────────────────────────────────────────────────────────
+recursive-include python *.py
+
+# ── Docs & meta ──────────────────────────────────────────────────────────────
+include README.md
+include CHANGELOG.md
+include pyproject.toml
+
+# ── Exclude ALL JavaScript / npm files ───────────────────────────────────────
+exclude package.json
+exclude package-lock.json
+exclude .npmignore
+exclude .gitignore
+prune src
+prune types
+prune scripts
+prune bin
+prune examples/node-commonjs
+prune examples/node-esm
+prune examples/react
+prune examples/express
+prune node_modules
+prune .github
+prune tests/js

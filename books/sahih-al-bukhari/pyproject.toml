@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "sahih-al-bukhari"
+version = "3.1.5"
+description = "Complete Sahih al-Bukhari — 7,277 hadiths. Offline-first, zero dependencies. CLI + Python library."
+authors = ["muhammadsaadamin"]
+license = "AGPL-3.0"
+readme = "README.md"
+homepage = "https://github.com/SENODROOM/sahih-al-bukhari"
+repository = "https://github.com/SENODROOM/sahih-al-bukhari"
+keywords = ["islam", "hadith", "bukhari", "sahih", "prophet", "muslim", "arabic", "english", "quran"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Religion",
+]
+packages = [{include = "sahih_al_bukhari", from = "python"}]
+include = [
+    "data/bukhari.json.gz",
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+# No mandatory dependencies — data is bundled in data/bukhari.json.gz
+# requests is optional (only used as CDN fallback if data file is missing)
+
+[tool.poetry.scripts]
+bukhari = "sahih_al_bukhari.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
