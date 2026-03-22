@@ -1,0 +1,15 @@
+node_modules/
+src/index.browser.js
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+data/nasai.json.gz
+!data/nasai.json
+.DS_Store
+Thumbs.db
+.env
+*.log

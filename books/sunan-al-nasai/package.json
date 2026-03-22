@@ -1,0 +1,58 @@
+{
+  "name": "sunan-al-nasai",
+  "version": "1.0.1",
+  "description": "Complete Sunan al-Nasa'i. Offline-first, zero dependencies. CLI + Node + React/Vue/Vite.",
+  "type": "module",
+  "main": "./src/index.cjs",
+  "module": "./src/index.browser.js",
+  "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "browser": "./src/index.browser.js",
+      "require": "./src/index.cjs",
+      "import": "./src/index.node.js"
+    },
+    "./data/chapters/*": "./data/chapters/*"
+  },
+  "bin": {
+    "nasai": "bin/index.js"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepublishOnly": "node scripts/build.mjs"
+  },
+  "keywords": [
+    "islam",
+    "hadith",
+    "nasai",
+    "nasa'i",
+    "sunan",
+    "sunnah",
+    "json",
+    "arabic",
+    "english",
+    "quran",
+    "react",
+    "hook"
+  ],
+  "author": "muhammadsaadamin",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SENODROOM/sunan-al-nasai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SENODROOM/sunan-al-nasai/issues"
+  },
+  "homepage": "https://github.com/SENODROOM/sunan-al-nasai#readme",
+  "files": [
+    "src/",
+    "types/",
+    "bin/index.js",
+    "data/nasai.json.gz"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
