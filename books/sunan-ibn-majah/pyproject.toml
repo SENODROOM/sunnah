@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "sunan-ibn-majah"
+version = "1.1.2"
+description = "Complete Sunan Ibn Majah — 4,341 hadiths with full Arabic text and English translations. Offline-first, zero dependencies. CLI + Python library."
+authors = ["muhammadsaadamin"]
+license = "AGPL-3.0"
+readme = "README.md"
+homepage = "https://github.com/SENODROOM/sunan-ibn-majah"
+repository = "https://github.com/SENODROOM/sunan-ibn-majah"
+keywords = ["islam", "hadith", "majah", "ibn-majah", "sunan", "sunnah", "arabic", "english", "quran"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Religion",
+]
+packages = [{include = "sunan_ibn_majah", from = "python"}]
+include = [
+    {path = "python/sunan_ibn_majah/data/majah.json.gz", format = ["sdist", "wheel"]},
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.scripts]
+majah = "sunan_ibn_majah.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
