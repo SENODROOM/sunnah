@@ -7,15 +7,14 @@ export interface Metadata {
   english: { title: string; author: string; introduction: string };
 }
 export interface DawudData { metadata: Metadata; chapters: Chapter[]; hadiths: Hadith[]; }
-
 export interface DawudInstance extends ArrayLike<Hadith> {
   [index: number]: Hadith;
-  readonly length:   number;
+  readonly length: number;
   readonly metadata: Metadata;
   readonly chapters: Chapter[];
   get(id: number): Hadith | undefined;
   getByChapter(chapterId: number): Hadith[];
-  search(query: string): Hadith[];
+  search(query: string, limit?: number): Hadith[];
   getRandom(): Hadith;
   find(predicate: (h: Hadith) => boolean): Hadith | undefined;
   filter(predicate: (h: Hadith) => boolean): Hadith[];
@@ -23,7 +22,6 @@ export interface DawudInstance extends ArrayLike<Hadith> {
   forEach(cb: (h: Hadith, i: number) => void): void;
   slice(start?: number, end?: number): Hadith[];
 }
-
 export declare class Dawud { constructor(data: DawudData); }
 export declare function loadDawud(): Promise<DawudInstance>;
 declare const dawud: DawudInstance;

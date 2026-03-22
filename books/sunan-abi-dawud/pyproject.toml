@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "sunan-abi-dawud"
+version = "1.0.5"
+description = "Complete Sunan Abi Dawud — 5,274 hadiths with full Arabic text and English translations. Offline-first, zero dependencies. CLI + Python library."
+authors = ["muhammadsaadamin"]
+license = "AGPL-3.0"
+readme = "README.md"
+homepage = "https://github.com/SENODROOM/sunan-abi-dawud"
+repository = "https://github.com/SENODROOM/sunan-abi-dawud"
+keywords = ["islam", "hadith", "dawud", "abu-dawud", "sunan", "sunnah", "arabic", "english", "quran"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Religion",
+]
+packages = [{include = "sunan_abi_dawud", from = "python"}]
+include = [
+    {path = "python/sunan_abi_dawud/data/dawud.json.gz", format = ["sdist", "wheel"]},
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.scripts]
+dawud = "sunan_abi_dawud.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
