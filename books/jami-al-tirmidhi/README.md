@@ -1,211 +1,201 @@
 <div align="center">
 
-<h1>🕌 Jami al-Tirmidhi</h1>
+<h1>
+  <img src="https://em-content.zobj.net/source/apple/391/mosque_1f54c.png" width="36" />
+  &nbsp;jami-al-tirmidhi
+</h1>
 
-![npm version](https://img.shields.io/npm/v/jami-al-tirmidhi?style=for-the-badge&logo=npm)
-![npm downloads](https://img.shields.io/npm/dt/jami-al-tirmidhi?style=for-the-badge&logo=npm)
-![npm downloads per month](https://img.shields.io/npm/dm/jami-al-tirmidhi?style=for-the-badge&logo=npm)
-![license](https://img.shields.io/github/license/SENODROOM/jami-al-tirmidhi?style=for-the-badge&logo=gnu)
-![node version](https://img.shields.io/node/v/jami-al-tirmidhi?style=for-the-badge&logo=node.js)
-![bundle size](https://img.shields.io/bundlephobia/minzip/jami-al-tirmidhi?style=for-the-badge)
-![GitHub stars](https://img.shields.io/github/stars/SENODROOM/jami-al-tirmidhi?style=for-the-badge&logo=github)
+<p align="center">
+  <strong>The complete Jami al-Tirmidhi — 3,956 hadiths, full Arabic & English.</strong><br />
+  Offline-first · zero dependencies · published on both <strong>npm</strong> and <strong>PyPI</strong>.
+</p>
 
-**📚 Complete Jami al-Tirmidhi for JavaScript — CLI with colors & search, Node.js, React, Vue. Tiny package, data from CDN.**
+<br />
 
-[![NPM](https://nodei.co/npm/jami-al-tirmidhi.png)](https://nodei.co/npm/jami-al-tirmidhi/)
+<p>
+  <a href="https://www.npmjs.com/package/jami-al-tirmidhi">
+    <img src="https://img.shields.io/npm/v/jami-al-tirmidhi?style=for-the-badge&logo=npm&logoColor=white&color=CB3837&labelColor=1a1a1a" />
+  </a>
+  &nbsp;
+  <a href="https://pypi.org/project/jami-al-tirmidhi/">
+    <img src="https://img.shields.io/pypi/v/jami-al-tirmidhi?style=for-the-badge&logo=pypi&logoColor=white&color=3775A9&labelColor=1a1a1a" />
+  </a>
+  &nbsp;
+  <a href="https://github.com/SENODROOM/jami-al-tirmidhi/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/SENODROOM/jami-al-tirmidhi?style=for-the-badge&logo=gnu&logoColor=white&color=A42E2B&labelColor=1a1a1a" />
+  </a>
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Node.js-%3E%3D18-339933?style=for-the-badge&logo=node.js&logoColor=white&labelColor=1a1a1a" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Python-%3E%3D3.8-3776AB?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a1a" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/Zero-Dependencies-00C853?style=for-the-badge&logoColor=white&labelColor=1a1a1a" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/TypeScript-Typed-3178C6?style=for-the-badge&logo=typescript&logoColor=white&labelColor=1a1a1a" />
+</p>
 
 </div>
 
 ---
 
-## 📊 Package Statistics
+## ✨ Features
 
-| Metric | Value | Description |
-|--------|-------|-------------|
-| 📚 **Total Hadiths** | 3,956 | Complete Jami al-Tirmidhi collection |
-| 📝 **Chapters** | 1,871 | Detailed chapter organization |
-| 📦 **Package Size** | ~3KB | Core package — data loads from CDN |
-| ⚡ **CLI Search** | O(n) | Instant results with ms timing shown |
-| 🔧 **Dependencies** | 0 | Zero external dependencies |
-| 🌐 **Bilingual** | ✅ | Full Arabic text + English translations |
-| 📘 **TypeScript** | ✅ | Built-in type definitions |
+| | Feature | Details |
+|---|---|---|
+| 📚 | **Complete Collection** | All 3,956 authentic hadiths from Jami al-Tirmidhi |
+| 🌐 | **Bilingual** | Full Arabic text + English translation |
+| ⚡ | **Offline-first** | Data bundled — no CDN needed |
+| 🔧 | **Zero Dependencies** | Nothing extra to install |
+| 🔍 | **Full-text Search** | Search English text and narrator names instantly |
+| 🖥️ | **CLI** | Terminal access with Arabic/English/both flags |
+| ⚛️ | **React Hook** | One command generates `useTirmidhi()` |
+| 🐍 | **Python** | Identical API — same camelCase method names |
+| 📘 | **TypeScript** | Full type definitions included |
 
 ---
 
 ## 🚀 Installation
 
 ```bash
-npm install jami-al-tirmidhi        # local
-npm install -g jami-al-tirmidhi     # global CLI
+npm install jami-al-tirmidhi       # JS local
+npm install -g jami-al-tirmidhi    # JS global CLI
+pip install jami-al-tirmidhi       # Python
 ```
 
 ---
 
-## 🖥️ CLI Usage
+## 🟨 JavaScript / Node.js
 
-### Read a hadith
+```javascript
+const tirmidhi = require('jami-al-tirmidhi');  // CJS
+import tirmidhi from 'jami-al-tirmidhi';       // ESM
 
-```bash
-tirmidhi 1                 # First hadith
-tirmidhi 2345              # Hadith #2345
-tirmidhi 23 34             # 34th hadith of chapter 23
-tirmidhi 2345 -a           # Arabic only
-tirmidhi 2345 -b           # Arabic + English
-```
-
-### Search hadiths
-
-```bash
-tirmidhi --search "prayer"            # top 5 results (fast)
-tirmidhi --search "fasting" --all     # all results
-tirmidhi -s "charity"                 # shorthand
-```
-
-Search output shows:
-- Result count + time taken (e.g. `42 results  (1ms)`)
-- Narrator, chapter name, hadith text
-- Search term highlighted in yellow
-- `...more results` hint when > 5 found
-
-### Browse a chapter
-
-```bash
-tirmidhi --chapter 5       # all hadiths in chapter 5
-tirmidhi -c 5              # shorthand
-```
-
-### Random hadith
-
-```bash
-tirmidhi --random          # random hadith in English
-tirmidhi --random -b       # random hadith in Arabic + English
-tirmidhi -r                # shorthand
-```
-
-### Other flags
-
-```bash
-tirmidhi --react            # generate useTirmidhi hook in React project
-tirmidhi --help
-tirmidhi --version
+tirmidhi.get(1)
+tirmidhi.getByChapter(1)
+tirmidhi.search('prayer')
+tirmidhi.search('prayer', 5)
+tirmidhi.getRandom()
+tirmidhi[0]
+tirmidhi.length
+tirmidhi.metadata
+tirmidhi.chapters
+tirmidhi.find(h => h.id === 23)
+tirmidhi.filter(h => h.chapterId === 1)
+tirmidhi.slice(0, 10)
 ```
 
 ---
 
-## ⚛️ React / Vue / Vite
+## ⚛️ React
 
 ```bash
 cd my-react-app
-tirmidhi --react
-# ✓ Generated: src/hooks/useTirmidhi.js
+tirmidhi --react    # generates src/hooks/useTirmidhi.js
 ```
 
 ```jsx
 import { useTirmidhi } from '../hooks/useTirmidhi';
 
-function HadithSearch() {
+function HadithOfTheDay() {
   const tirmidhi = useTirmidhi();
-  const [results, setResults] = useState([]);
-
   if (!tirmidhi) return <p>Loading...</p>;
-
-  return (
-    <div>
-      <input
-        placeholder="Search hadiths..."
-        onChange={e => setResults(tirmidhi.search(e.target.value, 5))}
-      />
-      {results.map(h => (
-        <div key={h.id}>
-          <strong>{h.english.narrator}</strong>
-          <p>{h.english.text}</p>
-        </div>
-      ))}
-    </div>
-  );
+  const h = tirmidhi.getRandom();
+  return <div><strong>{h.english.narrator}</strong><p>{h.english.text}</p></div>;
 }
 ```
 
 ---
 
-## 🟩 Node.js Usage
+## 🐍 Python
 
-```javascript
-// CommonJS
-const tirmidhi = require('jami-al-tirmidhi');
-console.log(tirmidhi.get(1));
-console.log(tirmidhi.search('prayer'));        // all results
-console.log(tirmidhi.search('prayer', 5));     // top 5 only
-console.log(tirmidhi.getRandom());
-console.log(tirmidhi.getByChapter(1));
-console.log(tirmidhi.length);
+```python
+from jami_al_tirmidhi import Tirmidhi
 
-// ESM
-import tirmidhi from 'jami-al-tirmidhi';
-const hadith = tirmidhi.get(23);
-console.log(hadith.english.text);
+tirmidhi = Tirmidhi()
+
+tirmidhi.get(1)
+tirmidhi.getByChapter(1)
+tirmidhi.search("prayer")
+tirmidhi.search("prayer", limit=5)
+tirmidhi.getRandom()
+tirmidhi[0]
+tirmidhi.length
+tirmidhi.find(lambda h: h.id == 23)
+tirmidhi.filter(lambda h: h.chapterId == 1)
+tirmidhi.slice(0, 10)
+
+# Custom path
+tirmidhi = Tirmidhi(data_path="/path/to/tirmidhi.json")
 ```
 
 ---
 
-## 🛠️ API Reference
+## 🖥️ CLI
 
-| Method / Property | Description |
-|-------------------|-------------|
-| `tirmidhi[0]` | Hadith at index 0 |
-| `tirmidhi.get(id)` | Hadith by ID — O(1) map lookup |
-| `tirmidhi.getByChapter(id)` | All hadiths in a chapter |
-| `tirmidhi.search(query)` | Full-text search — all results |
-| `tirmidhi.search(query, 5)` | Full-text search — top 5 |
-| `tirmidhi.getRandom()` | Random hadith |
-| `tirmidhi.length` | Total hadiths |
-| `tirmidhi.metadata` | Book metadata |
-| `tirmidhi.chapters` | All chapters |
-
-All native array methods work: `find`, `filter`, `map`, `forEach`, `slice`.
-
----
-
-## ⚡ Performance
-
-Lookups use a `Map` for O(1) access instead of array scanning:
-
-```javascript
-// O(1) — instant regardless of collection size
-tirmidhi.get(2345)
-
-// O(n) — scans all hadiths
-tirmidhi.search('prayer')
+```bash
+tirmidhi 1
+tirmidhi 2345 -a           # Arabic only
+tirmidhi 2345 -b           # Arabic + English
+tirmidhi 23 34             # Hadith 34 within chapter 23
+tirmidhi --search "prayer"
+tirmidhi --search "fasting" --all
+tirmidhi --chapter 1
+tirmidhi --random
+tirmidhi --react
+tirmidhi --version
 ```
 
 ---
 
-## 📐 Data Structure
+## 📂 Structure
 
-```javascript
-{
-  "id": 1,
-  "chapterId": 1,
-  "arabic": "حَدَّثَنَا...",
-  "english": {
-    "narrator": "Abu Huraira",
-    "text": "The Prophet (ﷺ) said..."
-  }
-}
 ```
+jami-al-tirmidhi/
+├── data/
+│   ├── tirmidhi.json          ← source of truth (replace with your real data)
+│   ├── tirmidhi.json.gz       ← generated (shipped in packages)
+│   └── chapters/              ← generated (gitignored)
+├── bin/index.js               ← CLI
+├── src/                       ← JS source
+├── types/index.d.ts
+├── python/jami_al_tirmidhi/   ← Python package
+├── scripts/build.mjs
+├── examples/
+├── docs/
+└── tests/
+```
+
+---
+
+## 🔧 Development
+
+```bash
+# Place your real tirmidhi.json in data/
+node scripts/build.mjs    # compress, generate chapters/, copy to python/
+
+# Test locally before publishing
+python -m build --wheel
+python -m zipfile -l dist\jami_al_tirmidhi-1.0.0-py3-none-any.whl | findstr "tirmidhi.json.gz"
+pip install dist\jami_al_tirmidhi-1.0.0-py3-none-any.whl --force-reinstall
+tirmidhi 23
+```
+
+Publishing is automatic via GitHub Actions on every GitHub Release.
 
 ---
 
 ## 📄 License
 
-**GNU Affero General Public License v3.0 (AGPL-3.0)**
+GNU Affero General Public License v3.0 (AGPL-3.0)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ for the Muslim community | Seeking knowledge together**
+**Made with ❤️ for the Muslim community · Seeking knowledge together**
 
-[![GitHub stars](https://img.shields.io/github/stars/SENODROOM/jami-al-tirmidhi?style=for-the-badge&logo=github)](https://github.com/SENODROOM/jami-al-tirmidhi)
+[![Stars](https://img.shields.io/github/stars/SENODROOM/jami-al-tirmidhi?style=for-the-badge&logo=github&logoColor=white&color=f0c040&labelColor=1a1a1a)](https://github.com/SENODROOM/jami-al-tirmidhi/stargazers)
 
 </div>

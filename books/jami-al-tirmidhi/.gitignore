@@ -1,2 +1,16 @@
-index.browser.js
 node_modules/
+src/index.browser.js
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+data/chapters/
+data/tirmidhi.json.gz
+!data/tirmidhi.json
+.DS_Store
+Thumbs.db
+.env
+*.log

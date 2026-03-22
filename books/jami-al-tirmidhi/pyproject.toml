@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "jami-al-tirmidhi"
+version = "1.0.0"
+description = "Complete Jami al-Tirmidhi — 3,956 hadiths with full Arabic text and English translations. Offline-first, zero dependencies. CLI + Python library."
+authors = ["muhammadsaadamin"]
+license = "AGPL-3.0"
+readme = "README.md"
+homepage = "https://github.com/SENODROOM/jami-al-tirmidhi"
+repository = "https://github.com/SENODROOM/jami-al-tirmidhi"
+keywords = ["islam", "hadith", "tirmidhi", "jami", "sunan", "sunnah", "arabic", "english", "quran"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Religion",
+]
+packages = [{include = "jami_al_tirmidhi", from = "python"}]
+include = [
+    {path = "python/jami_al_tirmidhi/data/tirmidhi.json.gz", format = ["sdist", "wheel"]},
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.scripts]
+tirmidhi = "jami_al_tirmidhi.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
