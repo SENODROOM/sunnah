@@ -1,0 +1,4 @@
+recursive-include python *.py
+include README.md
+include pyproject.toml
+exclude package.json

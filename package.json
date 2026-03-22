@@ -1,7 +1,8 @@
 {
   "name": "sunnah",
-  "version": "1.4.0",
-  "description": "Interactive CLI installer for Sunnah hadith npm packages",
+  "version": "1.5.0",
+  "description": "Interactive CLI installer and manager for all Sunnah hadith npm + PyPI packages",
+  "type": "module",
   "bin": {
     "sunnah": "./bin/index.js"
   },
@@ -15,13 +16,24 @@
     "muslim",
     "tirmidhi",
     "dawud",
+    "nasai",
+    "majah",
     "islam",
     "quran",
-    "cli"
+    "cli",
+    "package-manager"
   ],
-  "author": "",
+  "author": "muhammadsaadamin",
   "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SENODROOM/sunnah.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SENODROOM/sunnah/issues"
+  },
+  "homepage": "https://github.com/SENODROOM/sunnah#readme",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   }
 }

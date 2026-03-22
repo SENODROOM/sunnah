@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "sunnah"
+version = "1.5.0"
+description = "Interactive CLI installer and manager for all Sunnah hadith packages (npm + PyPI)"
+authors = ["muhammadsaadamin"]
+license = "AGPL-3.0"
+readme = "README.md"
+homepage = "https://github.com/SENODROOM/sunnah"
+repository = "https://github.com/SENODROOM/sunnah"
+keywords = ["sunnah", "hadith", "bukhari", "muslim", "islam", "cli", "package-manager"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Environment :: Console",
+    "Topic :: Religion",
+    "Topic :: Utilities",
+]
+packages = [{include = "sunnah_cli", from = "python"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+windows-curses = {version = ">=2.3", markers = "sys_platform == 'win32'", optional = true}
+
+[tool.poetry.extras]
+tui = ["windows-curses"]
+
+[tool.poetry.scripts]
+sunnah = "sunnah_cli.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

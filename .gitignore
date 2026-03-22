@@ -1,6 +1,11 @@
-sunnah.txt
-/sunnah.txt
-/.txtconfig
-.txtconfig
-/.txtignore
-.txtignore
+node_modules/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.DS_Store
+.env
+*.log
