@@ -1,6 +1,6 @@
 sunnah.txt
 /sunnah.txt
-/txtconfig.txt
-txtconfig.txt
-/txtignore.txt
-txtignore.txt
+/.txtconfig
+.txtconfig
+/.txtignore
+.txtignore
